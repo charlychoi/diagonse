@@ -215,15 +215,22 @@ export function DiagnoseApp() {
         {showOptional && (
           <div className="optional-box">
             <div className="field">
-              <label htmlFor="keywords">핵심 키워드 (쉼표로 구분)</label>
+              <label htmlFor="keywords">
+                메인 서비스·유관 키워드 (쉼표로 구분)
+              </label>
               <input
                 id="keywords"
                 name="keywords"
                 type="text"
-                placeholder="예: AI 컨설팅, 중장년"
+                placeholder="예: 병원동행, 부모님 병원동행, 케어리포트"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
               />
+              <p className="hint" style={{ margin: "6px 0 0" }}>
+                첫 키워드 = 메인 서비스입니다. 네이버에서 «회사명 + 첫 키워드»
+                (예: 서브온 병원동행)로 검색될 때 자사 홈이 연결되도록
+                Before→After가 작성됩니다.
+              </p>
             </div>
             <div className="field">
               <label htmlFor="industry">업종</label>

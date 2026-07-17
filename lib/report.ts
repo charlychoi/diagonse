@@ -208,10 +208,15 @@ export function buildMarkdownReport(
   lines.push(``);
   lines.push(`- 사이트 설명: ${result.siteDescription ?? "(없음)"}`);
   lines.push(
-    `- SEO Before→After 루틴 참고 문서: 프로젝트 루트 \`before_after.md\` (서브온 검색 신호 개선 가이드)`,
+    `- SEO Before→After 루틴: \`before_after.md\` (서브온 ‘서브온 병원동행’ = 회사+메인서비스 검색 연결 사례)`,
+  );
+  lines.push(
+    `- 목표: 회사명 단독 SEO가 아니라 메인 서비스·유관 검색어에서 공식 홈·콘텐츠가 연결되게 하는 신호 정렬`,
   );
   lines.push(`- 본 보고서는 MarkDiag 자동 생성본이며, 전문가 검토·게시 전 검수를 대체하지 않습니다.`);
-  lines.push(`- 검색 순위·노출은 보장하지 않습니다. 성과는 문의·예약 지표로 4주 단위 판단하세요.`);
+  lines.push(
+    `- 검색 순위·노출은 보장하지 않습니다. 성과는 ‘회사+메인서비스’ 실검색 연결·문의·예약으로 4주 단위 판단하세요.`,
+  );
   lines.push(`- PDF/PPT 내보내기 및 광고 플랫폼 연동은 Phase 2에서 제공됩니다.`);
   lines.push(``);
   lines.push(`---`);

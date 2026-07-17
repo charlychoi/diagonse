@@ -678,7 +678,8 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     `원점수 ${reliability.rawScore} → 보정 후 ${overallScore}. ` +
     `${STRUCTURE_SCORE.label}(6대 D1–D6, 정상/주의/취약 가중)와 척도가 다르며, 컨설팅 최종 기준은 구조 진단입니다. ` +
     `검색 순위·채널 활동일·전환 병목·NAP 통일은 URL만으로 확정하지 않습니다. ` +
-    `SEO 실행 가이드(Before→After)는 before_after.md 실무 루틴을 일반화해 title·meta·H1·히어로·체크리스트를 자동 생성합니다. ` +
+    `SEO 실행 가이드(Before→After)는 before_after.md 실무 루틴을 일반화합니다. ` +
+    `목표는 회사명 단독 SEO가 아니라, ‘회사명+메인서비스’·유관 검색어에서 공식 홈이 연결되도록 title·meta·H1·히어로·채널 신호를 정렬하는 것입니다. ` +
     `네이버 서치어드바이저 웹마스터 가이드(https://searchadvisor.naver.com/guide) 기준으로 robots·canonical·title·OG·모바일·구조화 데이터 등을 점검합니다.`;
 
   const seoPlaybook = buildSeoPlaybook(signals, input);
