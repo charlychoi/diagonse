@@ -8,16 +8,24 @@ export default function Home() {
       }}
     >
       <p style={{ color: "#03c75a", fontWeight: 900, letterSpacing: "0.08em" }}>
-        DIAGONSE · AGENT API
+        DIAGONSE · GENERATIVE AI SKILL
       </p>
       <h1 style={{ fontSize: 36, letterSpacing: "-0.04em", margin: "8px 0 16px" }}>
-        생성형 AI용 마케팅 사전진단 API
+        생성형 AI 스킬 · 마케팅 사전진단
       </h1>
       <p style={{ fontSize: 17, color: "#40536f", fontWeight: 650 }}>
-        홈페이지 URL + 회사명만 넘기면 HTML 크롤·브랜드 검색 신호 정렬·네이버
-        서치어드바이저 점검·Before→After 문안이 담긴{" "}
-        <strong>Markdown 보고서</strong>를 자동 생성합니다. 인터랙티브 UI 진단과
-        분리된 헤드리스 모듈입니다.
+        REST “서비스 제품”이 아니라, Grok·Claude·Cursor 등{" "}
+        <strong>생성형 AI가 로드하는 스킬</strong>입니다. 대화에서 URL + 회사명만
+        주면 에이전트가 헤드리스 진단을 돌리고{" "}
+        <strong>Markdown 보고서</strong>를 남깁니다. 사람용 입력 UI와 분리되어
+        있습니다.
+      </p>
+      <p style={{ fontSize: 15, fontWeight: 750 }}>
+        스킬 설치: 저장소 <code>skills/diagonse/SKILL.md</code> →{" "}
+        <code>~/.grok/skills/diagonse</code> 또는{" "}
+        <code>.claude/skills/diagonse</code>
+        <br />
+        슬래시: <code>/diagonse https://example.com 회사명</code>
       </p>
 
       <section

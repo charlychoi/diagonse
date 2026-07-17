@@ -1,102 +1,91 @@
-# Diagonse — Generative-AI Auto Marketing Diagnosis API
+# Diagonse — 생성형 AI 스킬 (마케팅 사전진단)
 
-**Headless** marketing diagnosis for AI agents.  
-Give a **homepage URL + company name** → get a full **Markdown evaluation report**.
+> **이건 REST “제품 API 서버”가 아니라, 생성형 AI가 불러 쓰는 스킬입니다.**  
+> 사람용 다단계 입력 UI와 분리되어 있습니다. AI에게 **홈페이지 URL + 회사명**만 주면 Markdown 평가 보고서를 만듭니다.
 
-Interactive UI diagnosis stays on the main MarkDiag app. This repo is **API-only** for agents (Grok, Claude, ChatGPT tools, scripts).
+- **Skill:** [`skills/diagonse/SKILL.md`](./skills/diagonse/SKILL.md)
+- **Slash:** `/diagonse <url> <company>`
+- **GitHub:** https://github.com/charlychoi/diagonse  
+- **실행 백엔드(스킬이 호출):** https://diagonse.vercel.app/api/diagnose  
 
-Repo: https://github.com/charlychoi/diagonse
-
-## Endpoints
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| `GET` | `/api/health` | Liveness |
-| `GET` | `/api/diagnose` | Help schema (no params) or run diagnosis via query |
-| `POST` | `/api/diagnose` | Run diagnosis (JSON body) |
-
-### POST body
-
-```json
-{
-  "url": "https://sangsangwoori.com/",
-  "company": "상상우리",
-  "keywords": ["AI 컨설팅", "AI 교육"],
-  "industry": "AI 컨설팅·교육",
-  "format": "json"
-}
-```
-
-| Field | Required | Notes |
-|-------|----------|--------|
-| `url` | ✅ | Homepage URL |
-| `company` | ✅ | Brand / company name (`companyName` / `brand` aliases OK) |
-| `keywords` | | Array or comma string |
-| `industry` | | Optional industry context |
-| `format` | | `json` (default) or `md` |
-
-### GET example
+## 생성형 AI에게 시키는 법
 
 ```
-GET /api/diagnose?url=https://sangsangwoori.com/&company=상상우리&keywords=AI%20컨설팅,AI%20교육&format=md
+/diagonse https://sangsangwoori.com/ 상상우리
 ```
 
-`format=md` returns `text/markdown` with `Content-Disposition` filename.
-
-### Response (JSON)
-
-- `scores.surfaceScore` — HTML surface score  
-- `scores.brandServiceBinding` — brand=service signal strength (before_after strategy)  
-- `scores.naverGuideScore` — Naver Search Advisor technical checklist  
-- `markdown` — full report (save as `.md`)  
-- `filename` — suggested file name  
-- `beforeAfter` — concrete title/meta/H1 copy  
-- `brandSearchQueries` — Naver search KPI links  
-
-## Prompt for other AIs
+또는:
 
 ```
-웹사이트 {URL} 회사명 {COMPANY}를 Diagonse API로 마케팅 사전진단해 줘.
-POST {BASE_URL}/api/diagnose
-Content-Type: application/json
-{"url":"{URL}","company":"{COMPANY}"}
-응답 JSON의 markdown 필드를 {filename}으로 저장하고, 점수·브랜드연결·Before/After를 한국어로 요약 보고해.
+https://sangsangwoori.com/ 회사명 상상우리 마케팅 사전진단해서 md 파일로 저장해줘
 ```
 
-## Auth (optional)
+스킬이 로드되면 에이전트는:
 
-Set Vercel env `DIAGNOSE_API_KEY`. Clients must send:
+1. URL·회사명 파싱  
+2. Diagonse 엔드포인트(또는 로컬 CLI)로 헤드리스 진단  
+3. `markdown`을 `.md`로 저장  
+4. 점수·브랜드연결·Before/After 요약 보고  
+
+## 설치 (에이전트 환경)
+
+### Grok
+
+```bash
+# 이 저장소를 clone 하거나, SKILL만 복사
+cp -R skills/diagonse ~/.grok/skills/diagonse
+```
+
+이후 대화에서 `/diagonse` 또는 “홈페이지 마케팅 진단” 트리거.
+
+### Claude Code / Cursor
+
+```bash
+cp -R skills/diagonse .claude/skills/diagonse
+# 또는 유저 스킬
+cp -R skills/diagonse ~/.claude/skills/diagonse
+```
+
+### 다른 LLM 에이전트
+
+`skills/diagonse/SKILL.md` 내용을 시스템/스킬 프롬프트에 넣고,  
+도구로 `POST https://diagonse.vercel.app/api/diagnose` 를 허용하면 됩니다.
+
+## 스킬 vs UI
+
+| | 생성형 AI 스킬 (이 저장소) | 사람용 UI (`ai-agent-site`) |
+|--|---------------------------|------------------------------|
+| 입력 | URL + 회사명 (대화) | 웹 폼·마법사 |
+| 실행 | 에이전트 + 헤드리스 엔진 | 브라우저 |
+| 출력 | Markdown 파일 | 화면 + 로컬 저장 |
+| 목적 | 프롬프트 한 줄 자동화 | 실측 체크·컨설턴트 워크플로 |
+
+## 스킬이 호출하는 실행 계층 (구현 상세)
+
+에이전트가 직접 HTML을 전부 손으로 채점하지 않도록, 같은 저장소에 **헤드리스 러너**가 있습니다.
 
 ```
-Authorization: Bearer <DIAGNOSE_API_KEY>
+POST https://diagonse.vercel.app/api/diagnose
+{ "url": "...", "company": "..." }
+→ { markdown, scores, filename, beforeAfter, ... }
 ```
 
-or header `x-api-key`.
-
-## Local
+로컬:
 
 ```bash
 npm install
-npm run dev
-# http://localhost:3000/api/diagnose
-
-npm run diagnose -- https://sangsangwoori.com/ 상상우리 "AI 컨설팅,AI 교육"
+npx tsx scripts/diagnose-cli.ts "https://example.com" "회사명" "키워드1,키워드2"
 ```
 
-## Deploy (Vercel)
+API 키(선택): Vercel env `DIAGNOSE_API_KEY` → `Authorization: Bearer …`
 
-```bash
-npx vercel --prod
-```
+## 보고서가 담는 것
 
-Or connect GitHub repo `charlychoi/diagonse` in Vercel dashboard → Deploy.
+- 표면 신호 점수 (HTML)  
+- **브랜드=서비스 연결** (네이버 브랜드 검색 전략 · before_after)  
+- 네이버 서치어드바이저 **기술 전제** 점검  
+- Before→After 문안 · 실검색 KPI 링크 · 체크리스트  
 
-Node.js **≥ 20**. Function max duration **60s** (homepage crawl).
+## License / 한계
 
-## Architecture
-
-```
-app/api/diagnose  →  lib/auto-diagnose  →  crawl + analyzer + seo-playbook + naver-seo
-```
-
-Engine ports MarkDiag (surface score, brand-search strategy from `before_after.md`, Naver Search Advisor checklist). Interactive wizard (D1–D6) is **not** in this service.
+검색 순위·노출은 보장하지 않습니다. 가이드 준수 ≠ 상위 노출.
