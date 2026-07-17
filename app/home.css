@@ -406,3 +406,114 @@
   font-weight: 700;
   color: #5c3d12;
 }
+
+/* ---- visualization cards (readability upgrade) ---- */
+.viz-card {
+  background: #fff;
+  border: 1px solid #e3ebf5;
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-top: 18px;
+  box-shadow: 0 1px 3px rgba(15, 35, 65, 0.04);
+}
+.viz-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f2341;
+  margin: 0 0 4px;
+}
+.viz-sub {
+  font-size: 13px;
+  color: #687992;
+  margin: 0 0 14px;
+}
+.viz-sub strong { color: #0d6ed8; }
+
+.axis-bars { display: flex; flex-direction: column; gap: 10px; }
+.axis-row { display: flex; align-items: center; gap: 12px; }
+.axis-name {
+  flex: 0 0 150px;
+  font-size: 13.5px;
+  color: #243b55;
+  font-weight: 600;
+}
+.axis-track {
+  flex: 1;
+  height: 20px;
+  background: #eef3f9;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.axis-fill { display: block; height: 100%; border-radius: 10px; transition: width .5s ease; }
+.axis-score { flex: 0 0 34px; text-align: right; font-weight: 800; font-size: 15px; }
+
+.kw-tiers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 760px) { .kw-tiers { grid-template-columns: 1fr; } }
+.kw-tier { border: 1px solid #e3ebf5; border-radius: 10px; overflow: hidden; }
+.kw-tier-head { padding: 8px 12px; font-size: 12.5px; font-weight: 700; color: #fff; }
+.kw-tier-1 .kw-tier-head { background: #64748b; }
+.kw-tier-2 .kw-tier-head { background: #0d6ed8; }
+.kw-tier-3 .kw-tier-head { background: #0a326f; }
+.kw-tier ul { list-style: none; margin: 0; padding: 8px 12px; }
+.kw-tier li { padding: 5px 0; border-bottom: 1px solid #f0f4f9; }
+.kw-tier li:last-child { border-bottom: none; }
+.kw-word { display: block; font-size: 13.5px; font-weight: 600; color: #1d314f; }
+.kw-intent { display: block; font-size: 11px; color: #8595a8; margin-top: 1px; }
+
+.ba-grid { display: flex; flex-direction: column; gap: 8px; }
+.ba-item { display: flex; align-items: center; gap: 10px; }
+.ba-tag {
+  flex: 0 0 92px; font-size: 11.5px; font-weight: 700; color: #0a5c32;
+  background: #e7f6ee; border-radius: 6px; padding: 3px 8px; text-align: center;
+}
+.ba-item code {
+  flex: 1; font-size: 12.5px; background: #f6f9fc; border: 1px solid #e3ebf5;
+  border-radius: 6px; padding: 6px 10px; color: #1d314f; word-break: break-all;
+}
+.kw-note {
+  font-size: 12px; color: #8a6410; background: #fff8ec;
+  border-left: 3px solid #f4c65a; border-radius: 0 6px 6px 0;
+  padding: 8px 12px; margin: 10px 0 0;
+}
+
+.report-details {
+  margin-top: 18px; background: #fff; border: 1px solid #e3ebf5;
+  border-radius: 14px; padding: 4px 22px;
+}
+.report-details > summary {
+  cursor: pointer; font-weight: 700; color: #0d6ed8; padding: 14px 0; font-size: 14px;
+}
+.report-md { padding: 8px 0 20px; font-size: 14px; color: #243b55; line-height: 1.7; }
+.report-md h1 { font-size: 22px; margin: 24px 0 10px; color: #0f2341; }
+.report-md h2 {
+  font-size: 18px; margin: 26px 0 10px; color: #0f2341;
+  border-bottom: 2px solid #eef3f9; padding-bottom: 6px;
+}
+.report-md h3 { font-size: 15.5px; margin: 18px 0 8px; color: #1d314f; }
+.report-md h4 { font-size: 14px; margin: 14px 0 6px; color: #40536f; }
+.report-md p { margin: 8px 0; }
+.report-md ul, .report-md ol { margin: 8px 0 8px 22px; }
+.report-md li { margin: 3px 0; }
+.report-md table {
+  border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 12.5px;
+  display: block; overflow-x: auto;
+}
+.report-md th {
+  background: #eef3f9; color: #0a326f; text-align: left; padding: 7px 10px;
+  border: 1px solid #dce6f1; font-weight: 700; white-space: nowrap;
+}
+.report-md td { padding: 7px 10px; border: 1px solid #e3ebf5; vertical-align: top; }
+.report-md tr:nth-child(even) td { background: #fafcfe; }
+.report-md code {
+  background: #f1f5fa; border-radius: 4px; padding: 1px 5px; font-size: 12px; color: #9f1239;
+}
+.report-md pre {
+  background: #0f2341; color: #e6eefc; border-radius: 8px; padding: 14px;
+  overflow-x: auto; font-size: 12px; line-height: 1.5;
+}
+.report-md pre code { background: none; color: inherit; padding: 0; }
+.report-md blockquote {
+  border-left: 3px solid #0d6ed8; background: #f6f9fc; margin: 10px 0;
+  padding: 8px 14px; color: #40536f; border-radius: 0 6px 6px 0;
+}
+.report-md a { color: #0d6ed8; }

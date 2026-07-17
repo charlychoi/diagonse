@@ -1,12 +1,31 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   buildStandaloneHtml,
   downloadBlob,
   openPrintPdf,
   reportBaseName,
 } from "../lib/export-report";
+
+type AxisScore = { key: string; score: number; label: string };
+type KeywordTier = { keyword: string; intent: string };
+type KeywordStrategy = {
+  source: "ai" | "heuristic";
+  model?: string;
+  mainBusiness: string;
+  primaryService: string;
+  regions: string[];
+  tier1: KeywordTier[];
+  tier2: KeywordTier[];
+  tier3: KeywordTier[];
+  titleAfter: string;
+  metaAfter: string;
+  h1After: string;
+  notes: string[];
+};
 
 type DiagnoseOk = {
   ok: true;
@@ -21,8 +40,19 @@ type DiagnoseOk = {
     naverGuideScore: number;
     confidence: string;
   };
+  axes?: AxisScore[];
+  keywordStrategy?: KeywordStrategy;
   input: { url: string; company: string; keywords?: string[]; industry?: string };
 };
+
+function scoreColor(n: number): string {
+  if (n < 40) return "#e11d48";
+  if (n < 70) return "#f59e0b";
+  return "#16a34a";
+}
+function tierClass(t: 1 | 2 | 3): string {
+  return `kw-tier kw-tier-${t}`;
+}
 
 type DiagnoseErr = { ok: false; error: string };
 
@@ -344,9 +374,94 @@ export function DiagnoseApp() {
             </div>
           )}
 
-          <div className="preview">
-            <pre>{result.markdown}</pre>
-          </div>
+          {result.axes && result.axes.length > 0 && (
+            <div className="viz-card">
+              <h3 className="viz-title">5개 영역 표면 점수</h3>
+              <div className="axis-bars">
+                {result.axes.map((a) => (
+                  <div className="axis-row" key={a.key}>
+                    <span className="axis-name">{a.label}</span>
+                    <span className="axis-track">
+                      <span
+                        className="axis-fill"
+                        style={{
+                          width: `${a.score}%`,
+                          background: scoreColor(a.score),
+                        }}
+                      />
+                    </span>
+                    <span
+                      className="axis-score"
+                      style={{ color: scoreColor(a.score) }}
+                    >
+                      {a.score}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.keywordStrategy && (
+            <div className="viz-card">
+              <h3 className="viz-title">
+                키워드 전략 — 회사명이 아닌 핵심 키워드로 노출되기
+              </h3>
+              <p className="viz-sub">
+                산출: {result.keywordStrategy.source === "ai" ? `AI (${result.keywordStrategy.model ?? "Claude"})` : "휴리스틱(본문 분석)"} · 핵심 서비스 키워드{" "}
+                <strong>{result.keywordStrategy.primaryService}</strong>
+                {result.keywordStrategy.regions.length > 0 &&
+                  ` · 지역: ${result.keywordStrategy.regions.join(", ")}`}
+              </p>
+              <div className="kw-tiers">
+                {([
+                  [1, "1층 · 핵심 전환", result.keywordStrategy.tier1],
+                  [2, "2층 · 상황·니즈 (승부처)", result.keywordStrategy.tier2],
+                  [3, "3층 · 지역·B2B", result.keywordStrategy.tier3],
+                ] as const).map(([tier, title, items]) => (
+                  <div className={tierClass(tier)} key={tier}>
+                    <div className="kw-tier-head">{title}</div>
+                    <ul>
+                      {items.map((it, i) => (
+                        <li key={i}>
+                          <span className="kw-word">{it.keyword}</span>
+                          {it.intent && <span className="kw-intent">{it.intent}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="ba-grid">
+                <div className="ba-item">
+                  <span className="ba-tag">title</span>
+                  <code>{result.keywordStrategy.titleAfter}</code>
+                </div>
+                <div className="ba-item">
+                  <span className="ba-tag">description</span>
+                  <code>{result.keywordStrategy.metaAfter}</code>
+                </div>
+                <div className="ba-item">
+                  <span className="ba-tag">H1</span>
+                  <code>{result.keywordStrategy.h1After}</code>
+                </div>
+              </div>
+              {result.keywordStrategy.notes.map((n, i) => (
+                <p className="kw-note" key={i}>
+                  {n}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <details className="report-details">
+            <summary>전체 상세 보고서 펼치기 (표·체크리스트 포함)</summary>
+            <div className="report-md">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {result.markdown}
+              </ReactMarkdown>
+            </div>
+          </details>
         </section>
       )}
     </>
