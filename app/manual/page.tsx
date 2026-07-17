@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import type { Components } from "react-markdown";
+import type { ReactNode } from "react";
 import { HashNav } from "./HashNav";
 import "./manual.css";
 
@@ -28,8 +29,46 @@ function loadManual(): string {
   return "# 매뉴얼을 찾을 수 없습니다\n\n저장소의 `USER_MANUAL.md`를 확인해 주세요.";
 }
 
+function textOf(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (typeof node === "object" && "props" in node) {
+    const props = (node as { props?: { children?: ReactNode } }).props;
+    return textOf(props?.children);
+  }
+  return "";
+}
+
+/**
+ * Map numbered H2 titles → stable ASCII anchors (sec-1 … sec-12).
+ * Avoids Korean percent-encoding mismatches in browsers.
+ */
+function sectionIdFromHeading(text: string, fallback?: string): string {
+  const m = text.trim().match(/^(\d+)\.\s/);
+  if (m) return `sec-${m[1]}`;
+  // 부록 A/B
+  const app = text.trim().match(/^부록\s*([A-Za-z])\./);
+  if (app) return `app-${app[1].toLowerCase()}`;
+  return fallback || "";
+}
+
 const markdownComponents: Components = {
-  // Hash links: decode percent-encoding so href matches heading id (한글)
+  h2: ({ children, id, ...props }) => {
+    const text = textOf(children);
+    const stable = sectionIdFromHeading(text, typeof id === "string" ? id : undefined);
+    return (
+      <h2 id={stable || id} {...props}>
+        {children}
+      </h2>
+    );
+  },
+  h3: ({ children, id, ...props }) => (
+    <h3 id={id} {...props}>
+      {children}
+    </h3>
+  ),
+  // Decode percent-encoded hashes; keep ASCII sec-* as-is
   a: ({ href, children, ...props }) => {
     const isExternal = Boolean(href?.startsWith("http"));
     let resolved = href;
