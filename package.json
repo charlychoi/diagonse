@@ -2,7 +2,7 @@
   "name": "diagonse",
   "version": "1.0.0",
   "private": true,
-  "description": "Headless marketing diagnosis API for generative AI agents (URL + company → Markdown report)",
+  "description": "Web marketing diagnosis: homepage URL + company name → Markdown / HTML / PDF report",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,6 +15,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "marked": "^18.0.6",
     "next": "^15.5.7",
     "react": "19.1.1",
     "react-dom": "19.1.1",

@@ -13,7 +13,7 @@ import "./manual.css";
 export const metadata: Metadata = {
   title: "Diagonse 사용자 매뉴얼",
   description:
-    "마케팅 사전진단 스킬·Vercel 백엔드·ChatGPT/Claude/Gemini/Grok 사용법 전체 매뉴얼",
+    "마케팅 사전진단 웹 사용법 — URL·회사명 입력, Markdown·HTML·PDF 보고서 저장",
 };
 
 function loadManual(): string {
@@ -133,17 +133,18 @@ export default function ManualPage() {
 
       <footer className="manual-footer">
         <p>
-          백엔드:{" "}
+          웹 진단:{" "}
           <a href="https://diagonse.vercel.app">https://diagonse.vercel.app</a>
           {" · "}
-          스킬:{" "}
-          <a href="https://github.com/charlychoi/diagonse/tree/main/skills/diagonse">
-            skills/diagonse
+          소스:{" "}
+          <a href="https://github.com/charlychoi/diagonse">
+            github.com/charlychoi/diagonse
           </a>
         </p>
         <p className="manual-footer-note">
           ⚠️ 올바른 주소는 <strong>diagonse</strong>.vercel.app 입니다 (diagnose
-          아님).
+          아님). 일반 사용자는 스킬 등록 없이 웹에서 바로 진단·다운로드하면
+          됩니다.
         </p>
       </footer>
     </div>

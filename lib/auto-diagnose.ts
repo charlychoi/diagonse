@@ -151,18 +151,18 @@ export async function runAutoDiagnose(
 
   const result = await runDiagnosis(input);
 
-  // Enrich markdown header with agent mode note
-  const agentHeader = [
-    `> **생성형 AI 자동진단 모드** · Diagonse API v${VERSION}`,
+  // Enrich markdown header with web diagnosis note
+  const reportHeader = [
+    `> **Diagonse 마케팅 사전진단** · v${VERSION}`,
     `> 입력: URL \`${req.url}\` · 회사명 **${req.company}**`,
     `> 키워드: ${(keywords || []).join(", ") || "(없음)"}`,
-    `> 본 보고서는 인터랙티브 UI 없이 서버 헤드리스 진단으로 생성되었습니다.`,
+    `> 생성: ${new Date().toISOString()} · https://diagonse.vercel.app`,
     ``,
   ].join("\n");
 
   const markdown = result.markdownReport.replace(
     /^(# MarkDiag 마케팅 진단 보고서\n)/,
-    `$1\n${agentHeader}`,
+    `$1\n${reportHeader}`,
   );
 
   const AXIS_LABEL: Record<string, string> = {

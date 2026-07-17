@@ -165,10 +165,12 @@ export async function POST(request: Request) {
 
 function apiHelp() {
   return {
-    name: "Diagonse — Auto Marketing Diagnosis API",
+    name: "Diagonse — Marketing Diagnosis API",
     version: "1.0.0-auto",
     description:
-      "URL + company name → full MarkDiag evaluation as Markdown. For generative AI agents (no interactive UI).",
+      "URL + company name → marketing diagnosis (JSON with markdown). Primary UX is the web UI at /.",
+    web_ui: "https://diagonse.vercel.app",
+    manual: "https://diagonse.vercel.app/manual",
     endpoints: {
       "GET /api/diagnose":
         "?url=https://example.com&company=회사명&keywords=키워드1,키워드2&format=json|md",
@@ -183,14 +185,8 @@ function apiHelp() {
       },
       "GET /api/health": "Health check",
     },
-    agent_prompt_example: `
-웹사이트 https://sangsangwoori.com/ 회사명 상상우리를 마케팅 사전진단해 줘.
-POST https://<deployment>/api/diagnose
-{"url":"https://sangsangwoori.com/","company":"상상우리","keywords":["AI 컨설팅","AI 교육"]}
-응답의 markdown 필드를 .md 파일로 저장하고 요약을 사용자에게 보고해.
-`.trim(),
     notes: [
-      "Interactive UI diagnosis remains on the main MarkDiag app; this API is headless-only.",
+      "Prefer the web UI at / for end users (MD / HTML / PDF download).",
       "Set DIAGNOSE_API_KEY env to require Bearer token.",
       "maxDuration 60s — crawls external homepage HTML.",
       "Scores: surfaceScore (HTML), brandServiceBinding (brand search signal), naverGuideScore (technical).",
