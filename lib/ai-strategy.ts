@@ -60,12 +60,51 @@ const STOPWORDS = new Set([
   "contact", "home", "menu", "copyright", "rights", "reserved",
 ]);
 
+/**
+ * HTML/CSS/JS artifacts that leak from JavaScript-rendered pages.
+ * Without this filter, sites built with page builders yield junk keywords
+ * like "hover", "viewport", "nav" instead of real business terms.
+ */
+const TECH_TOKENS = new Set([
+  "hover", "text", "img", "image", "viewport", "nav", "show", "hide", "click",
+  "button", "btn", "div", "span", "class", "style", "color", "background",
+  "border", "margin", "padding", "width", "height", "font", "size", "align",
+  "flex", "grid", "block", "inline", "none", "auto", "left", "right", "top",
+  "bottom", "center", "wrap", "content", "container", "wrapper", "header",
+  "footer", "section", "main", "aside", "link", "href", "src", "alt", "title",
+  "meta", "html", "body", "head", "script", "https", "http", "www", "com",
+  "index", "page", "site", "web", "app", "data", "type", "name", "value",
+  "true", "false", "null", "function", "var", "let", "const", "return",
+  "active", "open", "close", "toggle", "slide", "fade", "modal", "popup",
+  "cookie", "gtag", "google", "analytics", "facebook", "instagram", "naver",
+  "kakao", "svg", "png", "jpg", "webp", "icon", "logo", "banner", "slider",
+]);
+
+/** A token that looks like a real (Korean) business keyword */
+function isBusinessToken(tok: string): boolean {
+  const t = tok.trim().toLowerCase();
+  if (!t || t.length < 2 || t.length > 20) return false;
+  if (STOPWORDS.has(t) || TECH_TOKENS.has(t)) return false;
+  // pure ASCII single words are usually UI/tech artifacts on Korean sites;
+  // keep them only if they appear inside a Korean bigram (handled elsewhere)
+  if (/^[a-z0-9]+$/.test(t)) return false;
+  // must contain Hangul to count as a business keyword
+  if (!/[가-힣]/.test(tok)) return false;
+  return true;
+}
+
 function tokenize(text: string): string[] {
   return (text || "")
     .replace(/[^가-힣a-zA-Z0-9\s]/g, " ")
     .split(/\s+/)
     .map((t) => t.trim())
-    .filter((t) => t.length >= 2 && t.length <= 20 && !STOPWORDS.has(t.toLowerCase()));
+    .filter(
+      (t) =>
+        t.length >= 2 &&
+        t.length <= 20 &&
+        !STOPWORDS.has(t.toLowerCase()) &&
+        !TECH_TOKENS.has(t.toLowerCase()),
+    );
 }
 
 /**
@@ -106,11 +145,20 @@ export function extractContentKeywords(
     }
   }
 
-  return [...freq.entries()]
+  // Keep only business-like tokens: Korean unigrams/bigrams, drop tech/ASCII junk
+  const ranked = [...freq.entries()]
+    .filter(([k]) => {
+      if (k.includes(" ")) {
+        // bigram: both parts must be Korean and non-tech
+        return k.split(" ").every((p) => /[가-힣]/.test(p) && !TECH_TOKENS.has(p));
+      }
+      return isBusinessToken(k);
+    })
     .sort((a, b) => b[1] - a[1])
-    .slice(0, limit * 2)
-    .map(([k]) => k)
-    // prefer bigrams and longer tokens near the top
+    .map(([k]) => k);
+
+  // prefer bigrams (more specific) near the top
+  return ranked
     .sort((a, b) => Number(b.includes(" ")) - Number(a.includes(" ")))
     .slice(0, limit);
 }
@@ -142,11 +190,16 @@ function heuristicService(
     const segs = signals.title.split(/[|·\-–—]/).map((s) => s.trim()).filter(Boolean);
     for (let i = 1; i < segs.length; i++) {
       const cleaned = segs[i].replace(/서비스|전문|공식|홈페이지/g, " ").replace(/\s+/g, " ").trim();
-      if (cleaned.length >= 2 && cleaned.length <= 24) return cleaned;
+      // must be a Korean business phrase, not an English/tech segment
+      if (cleaned.length >= 2 && cleaned.length <= 24 && /[가-힣]/.test(cleaned) && !TECH_TOKENS.has(cleaned.toLowerCase())) {
+        return cleaned;
+      }
     }
   }
   if (input.industry?.trim()) return input.industry.trim().split(/[·,/]/)[0].trim();
-  if (mined[0]) return mined[0];
+  // mined is already business-filtered (Korean); take the first
+  const minedKo = mined.find((m) => /[가-힣]/.test(m));
+  if (minedKo) return minedKo;
   return "핵심 서비스";
 }
 

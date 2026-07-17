@@ -109,3 +109,47 @@ describe("buildFaqJsonLd", () => {
     assert.equal(ld.mainEntity[0].name, "질문");
   });
 });
+
+describe("tech-artifact filtering (regression: sangsangwoori 'hover' bug)", () => {
+  it("excludes CSS/HTML/JS tokens from mined keywords", () => {
+    const polluted = fakeSignals({
+      title: "상상우리",
+      description: "중장년의 경험과 지혜가 사회혁신의 자원이 되도록",
+      h1s: [],
+      h2s: [],
+      bodyText:
+        "hover text img viewport nav show button click div span 상상우리는 중장년 일자리와 사회공헌 교육 컨설팅을 제공합니다. 시니어 컨설팅 사회공헌 프로그램 교육 hover text img nav",
+    });
+    const kws = extractContentKeywords(polluted, polluted.bodyText, "상상우리");
+    const junk = ["hover", "text", "img", "viewport", "nav", "show", "button", "click"];
+    assert.ok(
+      !kws.some((k) => junk.includes(k)),
+      `tech tokens leaked: ${kws.filter((k) => junk.includes(k)).join(", ")}`,
+    );
+    assert.ok(
+      kws.some((k) => /[가-힣]/.test(k)),
+      "should keep Korean business keywords",
+    );
+  });
+
+  it("primaryService is a Korean business term, never a CSS token", () => {
+    const polluted = fakeSignals({
+      title: "상상우리",
+      description: "중장년 시니어 컨설팅 교육",
+      h1s: [],
+      h2s: [],
+      bodyText: "hover text img nav 시니어 컨설팅 교육 사회공헌 중장년 일자리 컨설팅 교육",
+    });
+    const st = buildHeuristicStrategy(polluted, { url: polluted.url, company: "상상우리" }, polluted.bodyText);
+    assert.ok(/[가-힣]/.test(st.primaryService), `service not Korean: ${st.primaryService}`);
+    assert.ok(
+      !["hover", "text", "img", "nav", "viewport"].includes(st.primaryService),
+      `service is a tech token: ${st.primaryService}`,
+    );
+    const tier2 = st.tier2.map((x) => x.keyword);
+    assert.ok(
+      !tier2.some((k) => ["hover", "text", "img", "nav", "viewport", "show"].includes(k)),
+      `tier2 has tech tokens: ${tier2.join(", ")}`,
+    );
+  });
+});
