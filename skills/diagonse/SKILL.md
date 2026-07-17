@@ -111,5 +111,6 @@ npx tsx scripts/diagnose-cli.ts "<URL>" "<COMPANY>" "<KW1,KW2>"
 - `references/report-outline.md` — MD 목차
 - `references/agent-examples.md` — 호출 예시
 
-원격 API (있으면 사용): `https://diagonse.vercel.app/api/diagnose`  
+원격 백엔드 (반드시 이 주소): `https://diagonse.vercel.app/api/diagnose`  
+⚠️ `https://diagnose.vercel.app` 는 **잘못된 주소** (404 / Vercel 로그인). 철자는 **diagonse** (diagnose 아님).  
 저장소: https://github.com/charlychoi/diagonse

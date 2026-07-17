@@ -1,5 +1,7 @@
 # Diagonse — 생성형 AI 스킬 (마케팅 사전진단)
 
+> **URL 주의:** 올바른 주소는 **https://diagonse.vercel.app** 입니다. `https://diagnose.vercel.app` 는 다른 프로젝트에 할당되어 있거나 SSO로 막혀 **404/로그인 페이지**가 나옵니다. 반드시 **diagon**se** (e 포함 철자)를 사용하세요.
+
 > **이건 REST “제품 API 서버”가 아니라, 생성형 AI가 불러 쓰는 스킬입니다.**  
 > 사람용 다단계 입력 UI와 분리되어 있습니다. AI에게 **홈페이지 URL + 회사명**만 주면 Markdown 평가 보고서를 만듭니다.
 

@@ -1,5 +1,7 @@
 # Diagonse · MarkDiag 사용자 매뉴얼
 
+> **URL 주의:** 올바른 주소는 **https://diagonse.vercel.app** 입니다. `https://diagnose.vercel.app` 는 다른 프로젝트에 할당되어 있거나 SSO로 막혀 **404/로그인 페이지**가 나옵니다. 반드시 **diagon**se** (e 포함 철자)를 사용하세요.
+
 **마케팅 사전진단 — 생성형 AI 스킬 + 헤드리스 백엔드 + 사람용 웹 UI**
 
 | 항목 | 내용 |
