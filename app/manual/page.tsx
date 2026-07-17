@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
+import type { Components } from "react-markdown";
 import "./manual.css";
 
 export const metadata: Metadata = {
@@ -24,6 +26,23 @@ function loadManual(): string {
   }
   return "# 매뉴얼을 찾을 수 없습니다\n\n저장소의 `USER_MANUAL.md`를 확인해 주세요.";
 }
+
+const markdownComponents: Components = {
+  // Hash links stay same-tab; external open new tab
+  a: ({ href, children, ...props }) => {
+    const isExternal = Boolean(href?.startsWith("http"));
+    return (
+      <a
+        href={href}
+        target={isExternal ? "_blank" : undefined}
+        rel={isExternal ? "noreferrer" : undefined}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
+};
 
 export default function ManualPage() {
   const md = loadManual();
@@ -56,18 +75,8 @@ export default function ManualPage() {
       <article className="manual-doc">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          components={{
-            a: ({ href, children, ...props }) => (
-              <a
-                href={href}
-                target={href?.startsWith("http") ? "_blank" : undefined}
-                rel={href?.startsWith("http") ? "noreferrer" : undefined}
-                {...props}
-              >
-                {children}
-              </a>
-            ),
-          }}
+          rehypePlugins={[rehypeSlug]}
+          components={markdownComponents}
         >
           {md}
         </ReactMarkdown>
