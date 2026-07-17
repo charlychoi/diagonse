@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "regions": ["icn1"],
+  "functions": {
+    "app/api/diagnose/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
+}

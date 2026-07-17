@@ -1,0 +1,214 @@
+/**
+ * Headless auto-diagnosis for generative AI agents.
+ * Input: homepage URL + company name (+ optional keywords/industry)
+ * Output: structured result + full Markdown report
+ */
+
+import { runDiagnosis } from "./analyzer";
+import type { DiagnosisInput, DiagnosisResult, MarketingChannel } from "./types";
+
+export type AutoDiagnoseRequest = {
+  /** Homepage URL (required) */
+  url: string;
+  /** Company / brand name (required for brand-search strategy) */
+  company: string;
+  /** Optional keywords (comma string or array). Default: derived from company + industry */
+  keywords?: string[] | string;
+  industry?: string;
+  targetCountry?: string;
+  channels?: MarketingChannel[] | string[];
+};
+
+export type AutoDiagnoseResponse = {
+  ok: true;
+  version: string;
+  generatedAt: string;
+  input: {
+    url: string;
+    company: string;
+    keywords?: string[];
+    industry?: string;
+  };
+  scores: {
+    surfaceScore: number;
+    grade: string;
+    brandServiceBinding: number;
+    brandServiceLevel: string;
+    naverGuideScore: number;
+    confidence: string;
+  };
+  summary: string;
+  axes: { key: string; score: number; label: string }[];
+  brandVisibility: DiagnosisResult["seoPlaybook"]["brandVisibility"];
+  beforeAfter: {
+    element: string;
+    before: string;
+    afterA: string;
+    brandSearchWhy?: string;
+  }[];
+  brandSearchQueries: DiagnosisResult["seoPlaybook"]["brandSearchQueries"];
+  naverTopActions: string[];
+  quickWins: DiagnosisResult["quickWins"];
+  /** Full markdown report — save as .md file */
+  markdown: string;
+  /** Suggested download filename */
+  filename: string;
+  resultId: string;
+};
+
+export type AutoDiagnoseError = {
+  ok: false;
+  error: string;
+  code: "VALIDATION" | "DIAGNOSIS" | "INTERNAL";
+};
+
+const VERSION = "1.0.0-auto";
+
+function parseKeywords(
+  raw: string[] | string | undefined,
+  company: string,
+  industry?: string,
+): string[] | undefined {
+  let list: string[] = [];
+  if (Array.isArray(raw)) {
+    list = raw.map((k) => String(k).trim()).filter(Boolean);
+  } else if (typeof raw === "string" && raw.trim()) {
+    list = raw
+      .split(/[,，|]/)
+      .map((k) => k.trim())
+      .filter(Boolean);
+  }
+  if (!list.length && industry) {
+    list = [industry.trim(), company.trim()].filter(Boolean);
+  }
+  if (!list.length) {
+    list = [company.trim()];
+  }
+  // unique, max 5
+  return [...new Set(list)].slice(0, 5);
+}
+
+function safeFilename(company: string, id: string): string {
+  const slug = company
+    .replace(/[^\w가-힣\-]+/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 40);
+  const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return `마케팅_사전진단_${slug || "report"}_${day}_${id.slice(0, 8)}.md`;
+}
+
+export function validateAutoRequest(
+  body: unknown,
+): { ok: true; data: AutoDiagnoseRequest } | { ok: false; error: string } {
+  if (!body || typeof body !== "object") {
+    return { ok: false, error: "JSON body required: { url, company }" };
+  }
+  const b = body as Record<string, unknown>;
+  const url = typeof b.url === "string" ? b.url.trim() : "";
+  const company =
+    typeof b.company === "string"
+      ? b.company.trim()
+      : typeof b.companyName === "string"
+        ? b.companyName.trim()
+        : typeof b.brand === "string"
+          ? b.brand.trim()
+          : "";
+
+  if (!url) return { ok: false, error: "url is required (homepage URL)" };
+  if (!company)
+    return {
+      ok: false,
+      error: "company is required (company or brand name). Aliases: companyName, brand",
+    };
+
+  return {
+    ok: true,
+    data: {
+      url,
+      company,
+      keywords: b.keywords as string[] | string | undefined,
+      industry: typeof b.industry === "string" ? b.industry.trim() : undefined,
+      targetCountry:
+        typeof b.targetCountry === "string" ? b.targetCountry.trim() : "대한민국",
+      channels: b.channels as string[] | undefined,
+    },
+  };
+}
+
+export async function runAutoDiagnose(
+  req: AutoDiagnoseRequest,
+): Promise<AutoDiagnoseResponse> {
+  const keywords = parseKeywords(req.keywords, req.company, req.industry);
+
+  const input: DiagnosisInput = {
+    url: req.url,
+    company: req.company,
+    keywords,
+    industry: req.industry,
+    targetCountry: req.targetCountry || "대한민국",
+    channels: req.channels as MarketingChannel[] | undefined,
+  };
+
+  const result = await runDiagnosis(input);
+
+  // Enrich markdown header with agent mode note
+  const agentHeader = [
+    `> **생성형 AI 자동진단 모드** · Diagonse API v${VERSION}`,
+    `> 입력: URL \`${req.url}\` · 회사명 **${req.company}**`,
+    `> 키워드: ${(keywords || []).join(", ") || "(없음)"}`,
+    `> 본 보고서는 인터랙티브 UI 없이 서버 헤드리스 진단으로 생성되었습니다.`,
+    ``,
+  ].join("\n");
+
+  const markdown = result.markdownReport.replace(
+    /^(# MarkDiag 마케팅 진단 보고서\n)/,
+    `$1\n${agentHeader}`,
+  );
+
+  const AXIS_LABEL: Record<string, string> = {
+    brand: "브랜드·포지셔닝",
+    contentSeo: "콘텐츠·SEO",
+    uxConversion: "UX·전환",
+    socialPaid: "소셜·유료",
+    authorityAi: "권위·AI검색",
+  };
+
+  return {
+    ok: true,
+    version: VERSION,
+    generatedAt: new Date().toISOString(),
+    input: {
+      url: result.input.url,
+      company: req.company,
+      keywords,
+      industry: req.industry,
+    },
+    scores: {
+      surfaceScore: result.overallScore,
+      grade: result.grade,
+      brandServiceBinding: result.seoPlaybook.brandVisibility.bindingScore,
+      brandServiceLevel: result.seoPlaybook.brandVisibility.level,
+      naverGuideScore: result.naverSeo.score,
+      confidence: result.reliability.confidence,
+    },
+    summary: result.executiveSummary.replace(/\*\*/g, ""),
+    axes: result.axes.map((a) => ({
+      key: a.key,
+      score: a.score,
+      label: AXIS_LABEL[a.key] || a.key,
+    })),
+    brandVisibility: result.seoPlaybook.brandVisibility,
+    beforeAfter: result.seoPlaybook.beforeAfter.map((b) => ({
+      element: b.element,
+      before: b.before,
+      afterA: b.afterA,
+      brandSearchWhy: b.brandSearchWhy,
+    })),
+    brandSearchQueries: result.seoPlaybook.brandSearchQueries,
+    naverTopActions: result.naverSeo.topActions,
+    quickWins: result.quickWins,
+    markdown,
+    filename: safeFilename(req.company, result.id),
+    resultId: result.id,
+  };
+}

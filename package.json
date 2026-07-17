@@ -1,0 +1,29 @@
+{
+  "name": "diagonse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Headless marketing diagnosis API for generative AI agents (URL + company → Markdown report)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "diagnose": "tsx scripts/diagnose-cli.ts",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "next": "^15.5.7",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.17.2",
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "tsx": "4.20.4",
+    "typescript": "5.9.2"
+  }
+}
