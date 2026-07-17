@@ -207,11 +207,12 @@ export function DiagnoseApp() {
   return (
     <>
       <div className="home-hero">
-        <h1>마케팅 사전진단</h1>
+        <h1>홈페이지 검색 노출 진단</h1>
         <p>
-          회사 홈페이지 주소와 회사명만 입력하면, 온라인 마케팅·네이버 브랜드 검색
-          신호를 분석한 보고서를 <strong>Markdown · HTML · PDF</strong>로 받을 수
-          있습니다. 별도 설치·스킬 등록이 필요 없습니다.
+          회사 홈페이지 주소와 회사명만 넣으면, 네이버·구글에서 우리 회사가{" "}
+          <strong>회사명이 아니라 핵심 사업 키워드</strong>로도 검색에 노출되는지
+          진단합니다. 무엇이 문제이고 <strong>무엇을 어떻게 고쳐야 하는지</strong>{" "}
+          점수·표·개선안이 담긴 보고서로 알려드립니다 (Markdown · HTML · PDF 저장).
         </p>
       </div>
 

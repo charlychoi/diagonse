@@ -8,11 +8,11 @@ export default function Home() {
       <header className="home-topbar">
         <div className="home-topbar-inner">
           <Link href="/" className="home-brand">
-            <strong>Diagonse</strong>
-            <span>마케팅 사전진단</span>
+            <strong>검색진단소</strong>
+            <span>홈페이지 검색 노출 진단</span>
           </Link>
           <nav className="home-nav">
-            <Link href="/manual">사용 매뉴얼</Link>
+            <Link href="/manual">사용자 설명서</Link>
             <a
               href="https://github.com/charlychoi/diagonse"
               target="_blank"

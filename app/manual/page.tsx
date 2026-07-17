@@ -11,9 +11,9 @@ import { HashNav } from "./HashNav";
 import "./manual.css";
 
 export const metadata: Metadata = {
-  title: "Diagonse 사용자 매뉴얼",
+  title: "검색진단소 사용자 설명서",
   description:
-    "마케팅 사전진단 웹 사용법 — URL·회사명 입력, Markdown·HTML·PDF 보고서 저장",
+    "홈페이지 검색 노출 진단 웹 사용법 — URL·회사명 입력, Markdown·HTML·PDF 보고서 저장",
 };
 
 function loadManual(): string {
@@ -101,8 +101,8 @@ export default function ManualPage() {
       <header className="manual-topbar">
         <div className="manual-topbar-inner">
           <Link href="/" className="manual-brand">
-            <strong>Diagonse</strong>
-            <span>사용자 매뉴얼</span>
+            <strong>검색진단소</strong>
+            <span>사용자 설명서</span>
           </Link>
           <nav className="manual-nav">
             <a href="https://diagonse.vercel.app/api/diagnose">API</a>

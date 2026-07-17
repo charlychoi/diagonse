@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Diagonse — 마케팅 사전진단",
+  title: "검색진단소 — 홈페이지 검색 노출 진단",
   description:
     "회사 홈페이지 URL과 회사명만 입력하면 마케팅·브랜드 검색 신호 보고서를 Markdown, HTML, PDF로 받을 수 있습니다.",
 };
