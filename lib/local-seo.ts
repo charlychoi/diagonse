@@ -10,6 +10,7 @@
 
 import type { ParsedSiteSignals } from "./crawl";
 import type { DiagnosisInput } from "./types";
+import type { PlacesResult } from "./places";
 
 export type LocalCheckStatus = "ok" | "warn" | "missing" | "manual";
 
@@ -36,6 +37,14 @@ export type LocalSeoReport = {
   /** true if Organization/LocalBusiness schema present */
   hasOrgSchema: boolean;
   hasLocalBusinessSchema: boolean;
+  liveSearch: {
+    performed: boolean;
+    method: string;
+    found: boolean;
+    reason?: string;
+    summary: string;
+    match: PlacesResult["match"];
+  };
   items: LocalCheckItem[];
   /** ordered GBP knowledge-panel action plan */
   panelPlan: { step: string; why: string }[];
@@ -66,6 +75,7 @@ function status(cond: boolean, ok: LocalCheckStatus = "ok", no: LocalCheckStatus
 export function evaluateLocalSeo(
   signals: ParsedSiteSignals,
   input: DiagnosisInput,
+  places?: PlacesResult,
 ): LocalSeoReport {
   const brand = (input.company || "").trim() || signals.hostname.split(".")[0];
   const region =
@@ -77,16 +87,54 @@ export function evaluateLocalSeo(
   const hasLocal = schemaTypes.some((t) => /LocalBusiness|Store|ProfessionalService|MedicalBusiness/i.test(t));
   const service = input.keywords?.[0] || input.industry || "서비스";
 
+  // ---- live Google Maps / Places verification ----
+  const lm = places?.match ?? null;
+  const liveDone = !!places?.performed;
+  const liveFound = !!places?.found && !!lm;
+  let liveSummary: string;
+  if (!liveDone) {
+    liveSummary =
+      places?.reason ||
+      "구글 맵 자동 조회 미수행 — Places API 키를 설정하면 실제 등록 여부·별점·리뷰를 자동 진단합니다.";
+  } else if (liveFound && lm) {
+    const stat = lm.businessStatus === "OPERATIONAL" ? "영업 중" : lm.businessStatus || "";
+    liveSummary =
+      `✅ 구글 맵에 등록되어 있습니다 — "${lm.name}"` +
+      (lm.rating != null ? ` · ★${lm.rating} (리뷰 ${lm.reviewCount ?? 0}개)` : " · 리뷰 없음") +
+      (lm.address ? ` · ${lm.address}` : "") +
+      (stat ? ` · ${stat}` : "") +
+      (lm.confidence !== "high"
+        ? " (동일 업체 여부는 홈페이지 링크로 재확인 권장)"
+        : "");
+  } else {
+    liveSummary =
+      `⚠️ 구글 맵 검색('${places?.query}')에서 이 업체를 찾지 못했습니다 — GBP 미등록이거나 상호·지역 표기가 달라 검색되지 않을 수 있습니다.`;
+  }
+
+  // NAP consistency between page and Google
+  let napMatchNote = "";
+  if (liveFound && lm) {
+    const pagePhoneDigits = phones.map((p) => p.replace(/[^0-9]/g, ""));
+    const gPhoneDigits = (lm.phone || "").replace(/[^0-9]/g, "");
+    if (gPhoneDigits && pagePhoneDigits.length) {
+      napMatchNote = pagePhoneDigits.includes(gPhoneDigits)
+        ? "홈페이지 전화와 구글 등록 전화가 일치합니다."
+        : `⚠️ 홈페이지 전화(${phones[0]})와 구글 등록 전화(${lm.phone})가 다릅니다 — NAP 불일치.`;
+    }
+  }
+
   const items: LocalCheckItem[] = [
     {
       id: "gbp-exists",
       category: "구글 비즈니스 프로필",
-      title: "구글 비즈니스 프로필(GBP) 등록·인증",
-      status: "manual",
-      detail:
-        "GBP가 있어야 구글 검색 우측에 지도·회사정보 패널이 노출됩니다. HTML만으로는 등록 여부를 알 수 없어 확인이 필요합니다.",
-      action:
-        `google.com/search에서 '${brand}' 검색 → 우측 패널 노출 여부 확인. 없으면 business.google.com에서 비즈니스 등록·소유권 인증(우편/전화). 카테고리는 '${service}'에 가장 가깝게 지정.`,
+      title: "구글 비즈니스 프로필(GBP) / 지도 패널 등록",
+      status: liveDone ? (liveFound ? "ok" : "missing") : "manual",
+      detail: liveSummary,
+      action: liveFound
+        ? `이미 구글 맵에 노출됩니다. 다음은 '최적화'가 과제입니다 — 카테고리를 '${service}'에 정확히, 설명·사진·영업시간 보강, 리뷰 확대. ${lm?.mapsUri ? `현재 등록: ${lm.mapsUri}` : ""}`
+        : liveDone
+          ? `구글 맵에 미노출입니다. business.google.com에서 '${brand}' 비즈니스 등록·소유권 인증(우편/전화) 후 카테고리를 '${service}'로 지정하세요.`
+          : `google.com/search에서 '${brand}' 검색 → 우측 패널 확인. 없으면 business.google.com에서 등록·인증. (Places API 키 설정 시 이 확인이 자동화됩니다)`,
     },
     {
       id: "gbp-category",
@@ -102,10 +150,20 @@ export function evaluateLocalSeo(
       id: "reviews",
       category: "신뢰·리뷰",
       title: "구글·네이버 리뷰 확보 (신뢰·패널 안정화)",
-      status: status(signals.hasReviewSignal, "warn", "missing"),
-      detail: signals.hasReviewSignal
-        ? "페이지에 리뷰·평점 신호가 감지되나, 실제 GBP/플레이스 리뷰 수는 별도 확인이 필요합니다."
-        : "리뷰·평점 신호가 감지되지 않았습니다. 신생 프로필은 리뷰가 적어 패널 노출이 보수적입니다.",
+      status:
+        liveFound && lm && lm.reviewCount != null
+          ? lm.reviewCount >= 20
+            ? "ok"
+            : lm.reviewCount >= 1
+              ? "warn"
+              : "missing"
+          : status(signals.hasReviewSignal, "warn", "missing"),
+      detail:
+        liveFound && lm && lm.reviewCount != null
+          ? `구글 리뷰 ${lm.reviewCount}개${lm.rating != null ? ` · 평점 ${lm.rating}` : ""}. ${lm.reviewCount >= 20 ? "리뷰 신뢰 신호 양호." : "리뷰가 적어 패널 노출·클릭 신뢰가 약합니다."}`
+          : signals.hasReviewSignal
+            ? "페이지에 리뷰·평점 신호가 감지되나, 실제 GBP/플레이스 리뷰 수는 확인이 필요합니다."
+            : "리뷰·평점 신호가 감지되지 않았습니다.",
       action:
         "서비스 완료 안내 시 리뷰 요청 문구+링크 동봉. 목표: 구글 리뷰 20개+ (별점 4.0+). 리뷰에 서비스 키워드가 자연 포함되면 관련 검색에 유리.",
     },
@@ -186,10 +244,35 @@ export function evaluateLocalSeo(
     ? Math.round(((ok + warn * 0.5) / auto.length) * 100)
     : 0;
 
-  const panelPlan = [
+  const panelPlan = (
+    liveFound
+      ? [
+          {
+            step: `이미 구글 맵에 노출 중 — "${lm?.name}"${lm?.rating != null ? ` (★${lm.rating}, 리뷰 ${lm.reviewCount ?? 0})` : ""}. 지금은 '최적화'가 과제입니다.`,
+            why: "등록은 됐으니, 정보 정확도·카테고리·리뷰·사진을 다듬어 노출을 안정화·상위화합니다.",
+          },
+          ...(napMatchNote
+            ? [{ step: napMatchNote, why: "홈페이지·구글·네이버·카카오맵의 전화·주소·상호가 100% 같아야 패널이 흔들리지 않습니다." }]
+            : []),
+          { step: `카테고리를 '${service}'에 정확히 지정, 설명 첫 문장에 '${brand}=${service} 전문' 명시`, why: "카테고리-검색어 정합성이 관련 검색에서의 패널 노출을 좌우합니다." },
+          { step: `리뷰 ${lm && lm.reviewCount != null && lm.reviewCount >= 20 ? "유지·응답 관리" : "20개+ 확보(별점 4.0+)"}, 사진 10장+ 등록`, why: "리뷰·사진 신호가 쌓일수록 브랜드·서비스 검색 모두에서 패널이 강해집니다." },
+          { step: "홈 <head>에 Organization + LocalBusiness JSON-LD 삽입 (GBP 정보와 100% 일치)", why: "구조화 데이터로 홈페이지와 GBP를 같은 엔티티로 확실히 연결합니다." },
+          { step: `수정 후 '${brand}' 재검색 + Rich Results Test로 스키마 검증`, why: "패널 정보 정확도·구조화 데이터 인식을 실측으로 확인합니다." },
+        ]
+      : liveDone
+        ? [
+            { step: `⚠️ 구글 맵 미노출 확인됨 — 최우선 과제는 'GBP 신규 등록'입니다.`, why: "패널의 원천은 GBP입니다. 등록·인증 전에는 우측 패널이 뜨지 않습니다." },
+            { step: "business.google.com에서 비즈니스 등록 → 우편/전화 소유권 인증", why: "인증을 마쳐야 정보를 통제하고 패널을 노출할 수 있습니다." },
+            { step: `카테고리를 '${service}'로, 설명 첫 문장에 '${brand}=${service} 전문' 명시`, why: "카테고리-검색어 정합성이 노출 안정성을 좌우합니다." },
+            { step: "NAP(상호·주소·전화)를 홈·GBP·네이버·카카오맵에서 완전 통일", why: "일치하는 NAP가 많을수록 구글이 동일 업체로 확신합니다." },
+            { step: "홈 <head>에 Organization + LocalBusiness JSON-LD 삽입", why: "홈페이지와 GBP를 같은 엔티티로 연결합니다." },
+            { step: "리뷰 20개+ 확보(별점 4.0+), 사진 10장+ 등록", why: "신뢰 신호가 쌓일수록 패널이 안정적으로 노출됩니다." },
+            { step: `등록 후 '${brand}' 재검색으로 패널 노출 확인`, why: "실제 노출·정보 정확도를 실측으로 확인합니다." },
+          ]
+        : [
     {
       step: `구글에서 '${brand}' 검색 → 우측 패널 노출 여부 캡처 (기준선)`,
-      why: "현재 지식/지도 패널이 뜨는지, 정보가 정확한지 먼저 확인합니다.",
+      why: "현재 지식/지도 패널이 뜨는지, 정보가 정확한지 먼저 확인합니다. (Places API 키 설정 시 이 단계가 자동화됩니다)",
     },
     {
       step: "GBP 등록·소유권 인증 (business.google.com)",
@@ -215,7 +298,7 @@ export function evaluateLocalSeo(
       step: `수정 후 '${brand}' 재검색 + Rich Results Test로 스키마 검증`,
       why: "패널 노출·정보 정확도·구조화 데이터 인식을 실측으로 확인합니다.",
     },
-  ];
+  ]);
 
   const addr = addresses[0] || "(도로명 주소 기재)";
   const tel = phones[0] || "(대표 전화 기재)";
@@ -272,6 +355,14 @@ export function evaluateLocalSeo(
     schemaTypes,
     hasOrgSchema: hasOrg,
     hasLocalBusinessSchema: hasLocal,
+    liveSearch: {
+      performed: liveDone,
+      method: places?.method ?? "none",
+      found: liveFound,
+      reason: places?.reason,
+      summary: liveSummary,
+      match: lm,
+    },
     items,
     panelPlan,
     localBusinessJsonLd,
@@ -296,6 +387,14 @@ export function formatLocalSeoMarkdown(r: LocalSeoReport): string {
   lines.push(
     `> 목표: 구글에서 **회사명 검색 시 우측에 지도·회사정보 패널**이 뜨고, 네이버 플레이스·리뷰로 신뢰를 높입니다. 로컬 준비도 **${r.score}/100** (양호 ${r.ok} · 보강 ${r.warn} · 미흡 ${r.missing} · 수동 ${r.manual}).`,
   );
+  lines.push("");
+  lines.push(`### 구글 맵 실검색 결과`);
+  lines.push("");
+  lines.push(`${r.liveSearch.summary}`);
+  if (r.liveSearch.found && r.liveSearch.match?.mapsUri) {
+    lines.push("");
+    lines.push(`- 구글 지도: ${r.liveSearch.match.mapsUri}`);
+  }
   lines.push("");
   lines.push(
     `- 감지된 NAP: 전화 ${r.nap.phones.join(", ") || "미검출"} · 주소 ${r.nap.addresses.join(", ") || "미검출"}`,

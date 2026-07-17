@@ -88,6 +88,18 @@ curl -sS -X POST "https://diagonse.vercel.app/api/diagnose" \
 
 결과 화면에 「구글 지도·지식 패널 & 로컬 SEO」 카드로 노출되며, 보고서(MD/HTML/PDF)에도 포함됩니다.
 
+## 구글 맵 실검색 (Places API · v1.3)
+
+로컬 SEO를 **일반 지침이 아니라 실제 구글 조회 결과 기반**으로 진단합니다:
+
+- 서버에 `GOOGLE_PLACES_API_KEY`(Places API — Text Search 활성화) 설정 시, 진단 때 **실제 구글 맵에 이 업체가 등록돼 있는지 조회**하고 이름·주소·전화·별점·리뷰수·영업상태를 실데이터로 가져옵니다.
+- 등록 확인 시 → GBP 상태 '양호', 실제 리뷰수 반영, **최적화 중심 전략**(카테고리·리뷰·NAP 일치) 제시
+- 미등록 확인 시 → '미흡', **신규 등록 중심 전략** 제시
+- 홈페이지 전화 vs 구글 등록 전화 **NAP 불일치 자동 감지**
+- 키 미설정 시 → "확인 불가"가 아니라 "자동 조회 미수행(키 설정 시 자동화)"으로 정직하게 안내 + 직접 확인 링크
+
+> 설정: Google Cloud → Places API(New) 활성화 → API 키 발급 → Vercel 환경변수 `GOOGLE_PLACES_API_KEY`. (AI 웹검색/`ANTHROPIC_API_KEY`와 별개)
+
 ## 점수 해석
 
 | 점수 | 의미 |

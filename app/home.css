@@ -643,3 +643,18 @@
   background: #eef3f9; color: #0d6ed8; text-decoration: none; border: 1px solid #d5e3f5;
 }
 .verify-chip:hover { background: #e0ecfb; }
+
+/* ---- live Google Maps search result ---- */
+.live-search { border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; border: 1px solid; }
+.ls-found { background: #f0f9f4; border-color: #b9e6cd; }
+.ls-missing { background: #fff8ec; border-color: #f4d99a; }
+.ls-idle { background: #f6f9fc; border-color: #e3ebf5; }
+.ls-head { font-weight: 800; font-size: 14px; margin-bottom: 4px; }
+.ls-found .ls-head { color: #0a5c32; }
+.ls-missing .ls-head { color: #8a6410; }
+.ls-idle .ls-head { color: #40536f; }
+.ls-summary { font-size: 13px; color: #1d314f; line-height: 1.5; }
+.ls-facts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.ls-fact { font-size: 12.5px; font-weight: 600; color: #0a5c32; background: #fff; border: 1px solid #cbe8d7; border-radius: 10px; padding: 3px 10px; }
+.ls-map { font-size: 12.5px; font-weight: 700; color: #0d6ed8; text-decoration: none; }
+.ls-map:hover { text-decoration: underline; }

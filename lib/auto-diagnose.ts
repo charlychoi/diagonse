@@ -71,6 +71,10 @@ export type AutoDiagnoseResponse = {
     schemaTypes: string[];
     hasOrgSchema: boolean;
     hasLocalBusinessSchema: boolean;
+    liveSearch: {
+      performed: boolean; method: string; found: boolean; reason?: string; summary: string;
+      match: { name: string; address: string; phone: string; rating: number | null; reviewCount: number | null; businessStatus: string; mapsUri: string; websiteUri: string; primaryType: string; confidence: string } | null;
+    };
     items: { status: string; category: string; title: string; detail: string; action: string }[];
     panelPlan: { step: string; why: string }[];
     organizationJsonLd: string;
@@ -266,6 +270,7 @@ export async function runAutoDiagnose(
       schemaTypes: result.localSeo.schemaTypes,
       hasOrgSchema: result.localSeo.hasOrgSchema,
       hasLocalBusinessSchema: result.localSeo.hasLocalBusinessSchema,
+      liveSearch: result.localSeo.liveSearch,
       items: result.localSeo.items.map((i) => ({
         status: i.status, category: i.category, title: i.title, detail: i.detail, action: i.action,
       })),

@@ -30,6 +30,10 @@ type LocalSeo = {
   schemaTypes: string[];
   hasOrgSchema: boolean;
   hasLocalBusinessSchema: boolean;
+  liveSearch: {
+    performed: boolean; method: string; found: boolean; reason?: string; summary: string;
+    match: { name: string; address: string; phone: string; rating: number | null; reviewCount: number | null; mapsUri: string; confidence: string } | null;
+  };
   items: LocalItem[];
   panelPlan: { step: string; why: string }[];
   organizationJsonLd: string;
@@ -561,6 +565,44 @@ export function DiagnoseApp() {
                 구글에서 <strong>회사명 검색 시 우측 지도·회사정보 패널</strong>이 뜨게 하고,
                 네이버 플레이스·리뷰로 신뢰를 높이는 전략입니다.
               </p>
+              {result.local.liveSearch && (
+                <div
+                  className={
+                    "live-search " +
+                    (!result.local.liveSearch.performed
+                      ? "ls-idle"
+                      : result.local.liveSearch.found
+                        ? "ls-found"
+                        : "ls-missing")
+                  }
+                >
+                  <div className="ls-head">
+                    {!result.local.liveSearch.performed
+                      ? "🔍 구글 맵 자동 조회"
+                      : result.local.liveSearch.found
+                        ? "✅ 구글 맵 실검색 결과 — 등록 확인됨"
+                        : "⚠️ 구글 맵 실검색 결과 — 미노출"}
+                  </div>
+                  <div className="ls-summary">{result.local.liveSearch.summary}</div>
+                  {result.local.liveSearch.found && result.local.liveSearch.match && (
+                    <div className="ls-facts">
+                      {result.local.liveSearch.match.rating != null && (
+                        <span className="ls-fact">
+                          ★ {result.local.liveSearch.match.rating} · 리뷰 {result.local.liveSearch.match.reviewCount ?? 0}
+                        </span>
+                      )}
+                      {result.local.liveSearch.match.address && (
+                        <span className="ls-fact">📍 {result.local.liveSearch.match.address}</span>
+                      )}
+                      {result.local.liveSearch.match.mapsUri && (
+                        <a className="ls-map" href={result.local.liveSearch.match.mapsUri} target="_blank" rel="noreferrer">
+                          구글 지도에서 보기 →
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="nap-row">
                 <span className="nap-chip">
                   📞 전화 {result.local.nap.phones.length ? result.local.nap.phones.join(", ") : "미검출"}

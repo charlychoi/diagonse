@@ -3,6 +3,7 @@ import { crawlAndParse } from "./crawl";
 import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
 import { evaluateLocalSeo } from "./local-seo";
+import { checkGooglePlace } from "./places";
 import { buildSearchMeasureBundle } from "./search-measure";
 import { buildSeoPlaybook } from "./seo-playbook";
 import { buildKeywordStrategy } from "./ai-strategy";
@@ -715,7 +716,13 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     extraKeywords: keywordStrategy.tier2.slice(0, 3).map((t) => t.keyword),
   });
   const naverSeo = evaluateNaverSeo(signals, effInput);
-  const localSeo = evaluateLocalSeo(signals, effInput);
+  const placesResult = await checkGooglePlace({
+    brand: (effInput.company || "").trim() || signals.hostname.split(".")[0],
+    region: (signals.addressHints?.[0] || effInput.industry || "").slice(0, 20),
+    hostname: signals.hostname,
+    service: effInput.keywords?.[0] || effInput.industry,
+  });
+  const localSeo = evaluateLocalSeo(signals, effInput, placesResult);
 
   const partial: Omit<DiagnosisResult, "markdownReport"> = {
     id,

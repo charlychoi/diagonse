@@ -331,12 +331,16 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
 
   const phoneSet = new Set<string>();
   for (const m of combined.matchAll(/tel:\+?([0-9\-() ]{7,})/gi)) {
-    phoneSet.add(m[1].replace(/[()\s]/g, "").trim());
+    const digits = m[1].replace(/[^0-9]/g, "");
+    if (digits.length >= 9 && digits.length <= 11) phoneSet.add(m[1].replace(/[()\s]/g, "").trim());
   }
-  for (const m of text.matchAll(/(0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}|1\d{3}[-\s]?\d{4})/g)) {
-    phoneSet.add(m[1].replace(/\s/g, ""));
+  // text: require real separators (hyphen/space) to avoid concatenated JS digit runs
+  for (const m of text.matchAll(
+    /(?<![\d-])(01[016789][-\s]\d{3,4}[-\s]\d{4}|0\d{1,2}[-\s]\d{3,4}[-\s]\d{4}|1[5-9]\d{2}[-\s]\d{4})(?![\d-])/g,
+  )) {
+    phoneSet.add(m[1].replace(/\s/g, "-"));
   }
-  const phones = [...phoneSet].slice(0, 5);
+  const phones = [...phoneSet].slice(0, 4);
 
   const addrSet = new Set<string>();
   for (const m of text.matchAll(
