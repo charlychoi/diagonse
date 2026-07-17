@@ -63,6 +63,8 @@ export function buildSearchMeasureBundle(opts: {
   company?: string;
   keywords?: string[];
   industry?: string;
+  /** tier-2 (situation/need) keywords from the keyword strategy */
+  extraKeywords?: string[];
 }): SearchMeasureBundle {
   let hostname = "";
   try {
@@ -150,6 +152,21 @@ export function buildSearchMeasureBundle(opts: {
       mapsTo: "D1 키워드 노출",
     });
   }
+
+  const seen = new Set(defs.map((d) => d.query));
+  (opts.extraKeywords ?? []).slice(0, 3).forEach((kw, i) => {
+    if (!kw || seen.has(kw)) return;
+    seen.add(kw);
+    defs.push({
+      id: `naver-tier2-${i + 1}`,
+      platform: "naver",
+      label: `네이버 2층 키워드: ${kw}`,
+      query: kw,
+      url: naverSearchUrl(kw),
+      why: "키워드 전략이 제안한 상황·니즈형 승부처 키워드의 1페이지 노출 확인",
+      mapsTo: "D1/D2 키워드 전략",
+    });
+  });
 
   if (opts.title && opts.title.length > 4) {
     defs.push({

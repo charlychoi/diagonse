@@ -28,6 +28,8 @@ export type ParsedSiteSignals = {
   hasFavicon: boolean;
   https: boolean;
   wordCount: number;
+  /** stripped body text (first ~10k chars) for keyword mining / AI analysis */
+  bodyText: string;
   imageCount: number;
   imagesWithAlt: number;
   internalLinks: number;
@@ -219,6 +221,7 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
       hasFavicon: false,
       https: base.protocol === "https:",
       wordCount: 0,
+      bodyText: "",
       imageCount: 0,
       imagesWithAlt: 0,
       internalLinks: 0,
@@ -312,6 +315,7 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
     hasFavicon: /rel=["'][^"']*icon[^"']*["']/i.test(home.html),
     https: (home.finalUrl || url).startsWith("https:"),
     wordCount: words.length,
+    bodyText: text.slice(0, 10000),
     imageCount: imgTags.length,
     imagesWithAlt,
     internalLinks,

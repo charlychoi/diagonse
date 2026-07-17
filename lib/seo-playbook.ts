@@ -202,13 +202,7 @@ function collectSupporting(
   }
   // Common trust/process terms from body if present
   const body = `${signals.description || ""} ${signals.title || ""}`;
-  for (const term of [
-    "케어리포트",
-    "동행매니저",
-    "부모님 병원동행",
-    "접수부터 귀가",
-    "상담",
-  ]) {
+  for (const term of ["상담", "예약", "자격", "인증", "후기", "파트너"]) {
     if (body.includes(term) || (input.keywords || []).some((k) => k.includes(term))) {
       push(term);
     }
@@ -300,32 +294,23 @@ function scoreBinding(opts: {
 
 /** Situation / benefit lines for H1·hero (domain-agnostic, service-aware) */
 function situationLine(primaryService: string, supports: string[]): string {
-  if (/병원|동행|요양|케어|돌봄/.test(primaryService)) {
-    return "부모님 병원길, 전문 동행매니저가 함께합니다";
-  }
-  if (/교육|컨설팅|강의|AI/.test(primaryService)) {
-    return "필요할 때 전문 인력이 함께합니다";
-  }
-  if (supports[0]) return `${supports[0]}이 필요할 때 함께합니다`;
-  return "필요할 때 전문 인력이 함께합니다";
+  if (supports[0]) return `${primaryService}, ${supports[0]}까지 함께합니다`;
+  return `${primaryService}, 필요할 때 전문가가 함께합니다`;
 }
 
 function processLine(primaryService: string, supports: string[]): string {
-  if (/병원|동행/.test(primaryService)) {
-    return "접수부터 진료·검사·수납·약국·귀가까지";
+  if (supports.length >= 2) {
+    return `${supports.slice(0, 3).join(" · ")} 전 과정 지원`;
   }
-  if (supports.some((s) => /케어리포트|리포트/.test(s))) {
-    return "전 과정 동행 후 결과 리포트 전달";
-  }
-  return "핵심 과정을 함께하고 결과를 전달";
+  return "상담부터 완료까지 전 과정을 함께합니다";
 }
 
 function trustBits(supports: string[], signals: ParsedSiteSignals): string {
   const bits: string[] = [];
-  if (supports.some((s) => /매니저|전문/.test(s))) bits.push("자격 기반 전문 인력");
-  if (supports.some((s) => /케어리포트|리포트/.test(s))) bits.push("케어리포트");
-  if ((signals.h1s || []).some((h) => /사회적기업|예비사회적/.test(h))) {
-    bits.push("보건복지형 예비사회적기업(배지·본문 영역)");
+  if (supports.some((s) => /매니저|전문|자격|강사/.test(s))) bits.push("자격 기반 전문 인력");
+  const heads = (signals.h1s || []).concat(signals.h2s || []);
+  if (heads.some((h) => /인증|수상|공식|파트너/.test(h))) {
+    bits.push("인증·파트너 이력(본문 확인 후 표기)");
   }
   if (!bits.length) bits.push("검증된 프로세스", "상담 가능");
   return bits.slice(0, 3).join(" · ");
@@ -438,7 +423,7 @@ export function buildSeoPlaybook(
         : `홈 표면상 ‘${brand}’–‘${primaryService}’ 연결 신호는 양호합니다. ‘${compound}’·유관 검색과 채널(블로그·플레이스) 메시지가 같은 방향인지 실측하세요.`;
 
   const sideEffect =
-    `대표 사례 일반화(서브온): ‘${compound}’로 검색해도 자사 홈·블로그와 안 묶이면 경쟁사·무관 정보가 노출됩니다. ` +
+    `대표 실패 패턴: ‘${compound}’로 검색해도 자사 홈·블로그와 안 묶이면 경쟁사·무관 정보가 노출됩니다. ` +
     `원인은 키워드 부재만이 아니라 title·H1·본문·채널에 ‘${brand} = ${primaryService} 전문’이 한 방향으로 정렬되지 않은 것입니다. ` +
     `회사명만 키우는 SEO는 목표와 다릅니다.`;
 

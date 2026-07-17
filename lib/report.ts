@@ -1,5 +1,7 @@
 import { AXIS_META, type DiagnosisResult } from "./types";
 
+import { buildFaqJsonLd } from "./ai-strategy";
+
 function impactLabel(v: string): string {
   if (v === "high") return "높음";
   if (v === "medium") return "중간";
@@ -115,6 +117,51 @@ export function buildMarkdownReport(
     lines.push(`- ${insight}`);
   }
   lines.push(``);
+
+  const ks = result.keywordStrategy;
+  if (ks) {
+    lines.push(`## 5.5 키워드 전략 — 회사명이 아닌 '핵심 키워드'로 노출되기`);
+    lines.push(``);
+    lines.push(
+      `- 산출 방식: ${ks.source === "ai" ? `AI(${ks.model}) — 크롤 본문 검색의도 분석` : "휴리스틱(본문 빈출 키워드) — 서버에 ANTHROPIC_API_KEY 설정 시 AI 분석으로 자동 업그레이드"}`,
+    );
+    lines.push(`- 메인 비즈니스(추정): ${ks.mainBusiness}`);
+    lines.push(
+      `- 핵심 서비스 키워드: **${ks.primaryService}**${ks.regions.length ? ` · 감지 지역: ${ks.regions.join(", ")}` : ""}`,
+    );
+    lines.push(``);
+    lines.push(`| 층 | 키워드 | 검색 의도 |`);
+    lines.push(`|---|---|---|`);
+    for (const kt of ks.tier1) lines.push(`| 1층 핵심전환 | ${kt.keyword} | ${kt.intent} |`);
+    for (const kt of ks.tier2) lines.push(`| 2층 상황·니즈 ★ | ${kt.keyword} | ${kt.intent} |`);
+    for (const kt of ks.tier3) lines.push(`| 3층 지역·B2B | ${kt.keyword} | ${kt.intent} |`);
+    lines.push(``);
+    lines.push(`### 온페이지 After안 (키워드 전략 반영)`);
+    lines.push(``);
+    lines.push(`- title: \`${ks.titleAfter}\``);
+    lines.push(`- meta description: \`${ks.metaAfter}\``);
+    lines.push(`- H1: \`${ks.h1After}\``);
+    lines.push(``);
+    if (ks.faqs.length) {
+      lines.push(`### FAQ 초안 — AI 검색·네이버 AI 브리핑 인용 대비`);
+      lines.push(``);
+      for (const f of ks.faqs) lines.push(`- **Q. ${f.q}**  \n  A. ${f.a}`);
+      lines.push(``);
+      lines.push(`FAQPage JSON-LD (홈 \`<head>\`에 삽입):`);
+      lines.push("\`\`\`json");
+      lines.push(buildFaqJsonLd(ks.faqs));
+      lines.push("\`\`\`");
+      lines.push(``);
+    }
+    if (ks.blogTitles.length) {
+      lines.push(`### 2층 키워드 매칭 블로그 제목 제안`);
+      lines.push(``);
+      for (const bt of ks.blogTitles) lines.push(`- ${bt}`);
+      lines.push(``);
+    }
+    for (const n of ks.notes) lines.push(`> ${n}`);
+    lines.push(``);
+  }
 
   lines.push(`## 6. Action Plan & 90일 Roadmap`);
   lines.push(``);

@@ -49,6 +49,8 @@ export type AutoDiagnoseResponse = {
   brandSearchQueries: DiagnosisResult["seoPlaybook"]["brandSearchQueries"];
   naverTopActions: string[];
   quickWins: DiagnosisResult["quickWins"];
+  /** AI/heuristic 3-tier keyword strategy (non-brand visibility design) */
+  keywordStrategy: DiagnosisResult["keywordStrategy"];
   /** Full markdown report — save as .md file */
   markdown: string;
   /** Suggested download filename */
@@ -79,11 +81,12 @@ function parseKeywords(
       .filter(Boolean);
   }
   if (!list.length && industry) {
-    list = [industry.trim(), company.trim()].filter(Boolean);
+    list = [industry.trim()].filter(Boolean);
   }
-  if (!list.length) {
-    list = [company.trim()];
-  }
+  // No company-name fallback: the product goal is NON-brand keyword
+  // visibility. When empty, the AI/heuristic keyword strategy
+  // (lib/ai-strategy) derives keywords from the crawled homepage content.
+  if (!list.length) return undefined;
   // unique, max 5
   return [...new Set(list)].slice(0, 5);
 }
@@ -155,7 +158,7 @@ export async function runAutoDiagnose(
   const reportHeader = [
     `> **Diagonse 마케팅 사전진단** · v${VERSION}`,
     `> 입력: URL \`${req.url}\` · 회사명 **${req.company}**`,
-    `> 키워드: ${(keywords || []).join(", ") || "(없음)"}`,
+    `> 키워드: ${(keywords || []).join(", ") || "(자동 추론 — 5.5 키워드 전략 섹션 참조)"}`,
     `> 생성: ${new Date().toISOString()} · https://diagonse.vercel.app`,
     ``,
   ].join("\n");
@@ -207,6 +210,7 @@ export async function runAutoDiagnose(
     brandSearchQueries: result.seoPlaybook.brandSearchQueries,
     naverTopActions: result.naverSeo.topActions,
     quickWins: result.quickWins,
+    keywordStrategy: result.keywordStrategy,
     markdown,
     filename: safeFilename(req.company, result.id),
     resultId: result.id,

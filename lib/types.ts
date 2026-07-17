@@ -4,6 +4,7 @@ import type { NaverSeoReport } from "./naver-seo-guide";
 import type { ScoreReliability } from "./score-reliability";
 import type { SearchMeasureBundle } from "./search-measure";
 import type { SeoPlaybook } from "./seo-playbook";
+import type { KeywordStrategy } from "./ai-strategy";
 
 export type DiagnosisAxisKey =
   | "brand"
@@ -123,6 +124,8 @@ export type DiagnosisResult = {
   roadmap: RoadmapItem[];
   /** Concrete SEO Before→After playbook (before_after.md routine) */
   seoPlaybook: SeoPlaybook;
+  /** AI/heuristic keyword strategy — non-brand keyword visibility design */
+  keywordStrategy: KeywordStrategy;
   /**
    * Pre-built search verification tasks (links).
    * status fields start as 미확인; client fills after human SERP check.

@@ -4,6 +4,7 @@ import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
 import { buildSearchMeasureBundle } from "./search-measure";
 import { buildSeoPlaybook } from "./seo-playbook";
+import { buildKeywordStrategy } from "./ai-strategy";
 import {
   finalizeSurfaceScore,
   gradeFromScore,
@@ -638,11 +639,32 @@ export function createDiagnosisId(): string {
 export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResult> {
   const signals = await crawlAndParse(input.url);
 
+  // Keyword strategy first — the product goal is non-brand keyword visibility.
+  // AI mode (ANTHROPIC_API_KEY) analyzes crawled content; otherwise heuristic
+  // content mining. Derived keywords feed every downstream module when the
+  // user did not supply keywords (previously this silently degraded to
+  // brand-only evaluation).
+  const keywordStrategy = await buildKeywordStrategy(
+    signals,
+    input,
+    signals.bodyText || "",
+  );
+  const effInput: DiagnosisInput =
+    input.keywords && input.keywords.length
+      ? input
+      : {
+          ...input,
+          keywords: [
+            keywordStrategy.primaryService,
+            ...keywordStrategy.tier2.slice(0, 2).map((t) => t.keyword),
+          ].filter((k) => k && k !== "핵심 서비스"),
+        };
+
   const axes: AxisScore[] = [
-    scoreBrand(signals, input),
-    scoreContentSeo(signals, input),
+    scoreBrand(signals, effInput),
+    scoreContentSeo(signals, effInput),
     scoreUxConversion(signals),
-    scoreSocialPaid(signals, input),
+    scoreSocialPaid(signals, effInput),
     scoreAuthorityAi(signals),
   ];
 
@@ -652,13 +674,13 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
   );
   const grade = gradeFromScore(overallScore);
   const quickWins = buildQuickWins(axes, signals);
-  const roadmap = buildRoadmap(axes, signals, input);
+  const roadmap = buildRoadmap(axes, signals, effInput);
   const executiveSummary = buildExecutiveSummary(
     overallScore,
     grade,
     axes,
     signals,
-    input,
+    effInput,
   );
   const keyInsights = [
     ...buildKeyInsights(axes, signals),
@@ -682,15 +704,16 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     `목표는 회사명 단독 SEO가 아니라, ‘회사명+메인서비스’·유관 검색어에서 공식 홈이 연결되도록 title·meta·H1·히어로·채널 신호를 정렬하는 것입니다. ` +
     `네이버 서치어드바이저 웹마스터 가이드(https://searchadvisor.naver.com/guide) 기준으로 robots·canonical·title·OG·모바일·구조화 데이터 등을 점검합니다.`;
 
-  const seoPlaybook = buildSeoPlaybook(signals, input);
+  const seoPlaybook = buildSeoPlaybook(signals, effInput);
   const searchMeasure = buildSearchMeasureBundle({
     url: signals.url || input.url,
     title: signals.title,
     company: input.company,
-    keywords: input.keywords,
+    keywords: effInput.keywords,
     industry: input.industry,
+    extraKeywords: keywordStrategy.tier2.slice(0, 3).map((t) => t.keyword),
   });
-  const naverSeo = evaluateNaverSeo(signals, input);
+  const naverSeo = evaluateNaverSeo(signals, effInput);
 
   const partial: Omit<DiagnosisResult, "markdownReport"> = {
     id,
@@ -714,6 +737,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     seoPlaybook,
     searchMeasure,
     naverSeo,
+    keywordStrategy,
     methodology,
   };
 
