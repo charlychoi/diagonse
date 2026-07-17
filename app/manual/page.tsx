@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import type { Components } from "react-markdown";
+import { HashNav } from "./HashNav";
 import "./manual.css";
 
 export const metadata: Metadata = {
@@ -28,12 +29,20 @@ function loadManual(): string {
 }
 
 const markdownComponents: Components = {
-  // Hash links stay same-tab; external open new tab
+  // Hash links: decode percent-encoding so href matches heading id (한글)
   a: ({ href, children, ...props }) => {
     const isExternal = Boolean(href?.startsWith("http"));
+    let resolved = href;
+    if (href?.startsWith("#")) {
+      try {
+        resolved = `#${decodeURIComponent(href.slice(1))}`;
+      } catch {
+        resolved = href;
+      }
+    }
     return (
       <a
-        href={href}
+        href={resolved}
         target={isExternal ? "_blank" : undefined}
         rel={isExternal ? "noreferrer" : undefined}
         {...props}
@@ -49,6 +58,7 @@ export default function ManualPage() {
 
   return (
     <div className="manual-shell">
+      <HashNav />
       <header className="manual-topbar">
         <div className="manual-topbar-inner">
           <Link href="/" className="manual-brand">
