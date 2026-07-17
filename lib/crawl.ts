@@ -98,14 +98,23 @@ function decodeHtml(value: string): string {
 }
 
 function stripTags(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+      // page-builder artifacts that pollute keyword mining (SVG paths, inline
+      // templates, embedded JSON config leak CSS/HTML tokens like hover/nav)
+      .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+      .replace(/<template[\s\S]*?<\/template>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      // collapse leftover CSS rule bodies ({ ... }) and prop:value; fragments
+      .replace(/\{[^{}]*\}/g, " ")
+      .replace(/&[a-z]+;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 function extractTags(html: string, tag: string): string[] {
