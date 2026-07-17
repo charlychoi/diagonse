@@ -38,7 +38,29 @@ export type AutoDiagnoseResponse = {
     confidence: string;
   };
   summary: string;
-  axes: { key: string; score: number; label: string }[];
+  axes: {
+    key: string;
+    score: number;
+    label: string;
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+  }[];
+  roadmap: DiagnosisResult["roadmap"];
+  naver: {
+    score: number;
+    pass: number;
+    warn: number;
+    fail: number;
+    manual: number;
+    items: {
+      status: string;
+      category: string;
+      title: string;
+      detail: string;
+      action: string;
+    }[];
+  };
   brandVisibility: DiagnosisResult["seoPlaybook"]["brandVisibility"];
   beforeAfter: {
     element: string;
@@ -199,7 +221,25 @@ export async function runAutoDiagnose(
       key: a.key,
       score: a.score,
       label: AXIS_LABEL[a.key] || a.key,
+      strengths: a.strengths,
+      weaknesses: a.weaknesses,
+      recommendations: a.recommendations,
     })),
+    roadmap: result.roadmap,
+    naver: {
+      score: result.naverSeo.score,
+      pass: result.naverSeo.pass,
+      warn: result.naverSeo.warn,
+      fail: result.naverSeo.fail,
+      manual: result.naverSeo.manual,
+      items: result.naverSeo.items.map((i) => ({
+        status: i.status,
+        category: i.category,
+        title: i.title,
+        detail: i.detail,
+        action: i.action,
+      })),
+    },
     brandVisibility: result.seoPlaybook.brandVisibility,
     beforeAfter: result.seoPlaybook.beforeAfter.map((b) => ({
       element: b.element,

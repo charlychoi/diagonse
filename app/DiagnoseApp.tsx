@@ -10,7 +10,18 @@ import {
   reportBaseName,
 } from "../lib/export-report";
 
-type AxisScore = { key: string; score: number; label: string };
+type AxisScore = {
+  key: string;
+  score: number;
+  label: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+};
+type RoadmapItem = { phase: "30" | "60" | "90"; title: string; description: string; expectedOutcome: string };
+type NaverItem = { status: string; category: string; title: string; detail: string; action: string };
+type BeforeAfter = { element: string; before: string; afterA: string; brandSearchWhy?: string };
+type QuickWin = { title: string; description: string; impact: string; effort: string };
 type KeywordTier = { keyword: string; intent: string };
 type KeywordStrategy = {
   source: "ai" | "heuristic";
@@ -42,6 +53,10 @@ type DiagnoseOk = {
   };
   axes?: AxisScore[];
   keywordStrategy?: KeywordStrategy;
+  roadmap?: RoadmapItem[];
+  naver?: { score: number; pass: number; warn: number; fail: number; manual: number; items: NaverItem[] };
+  beforeAfter?: BeforeAfter[];
+  quickWins?: QuickWin[];
   input: { url: string; company: string; keywords?: string[]; industry?: string };
 };
 
@@ -52,6 +67,17 @@ function scoreColor(n: number): string {
 }
 function tierClass(t: 1 | 2 | 3): string {
   return `kw-tier kw-tier-${t}`;
+}
+const NAVER_BADGE: Record<string, { cls: string; label: string }> = {
+  pass: { cls: "nb-pass", label: "통과" },
+  warn: { cls: "nb-warn", label: "주의" },
+  fail: { cls: "nb-fail", label: "미흡" },
+  manual: { cls: "nb-manual", label: "수동확인" },
+};
+function impactBadge(v: string): string {
+  if (v === "high") return "높음";
+  if (v === "medium") return "중간";
+  return "낮음";
 }
 
 type DiagnoseErr = { ok: false; error: string };
@@ -454,8 +480,189 @@ export function DiagnoseApp() {
             </div>
           )}
 
+          {result.axes && result.axes.some((a) => a.strengths?.length || a.weaknesses?.length) && (
+            <div className="viz-card">
+              <h3 className="viz-title">영역별 상세 진단 (강점·약점·개선)</h3>
+              <div className="axis-detail-list">
+                {result.axes.map((a) => (
+                  <div className="axis-detail" key={a.key}>
+                    <div className="axis-detail-head">
+                      <span className="ad-name">{a.label}</span>
+                      <span className="ad-track">
+                        <span
+                          className="ad-fill"
+                          style={{ width: `${a.score}%`, background: scoreColor(a.score) }}
+                        />
+                      </span>
+                      <span className="ad-score" style={{ color: scoreColor(a.score) }}>
+                        {a.score}
+                      </span>
+                    </div>
+                    <div className="ad-cols">
+                      <div className="ad-col ad-strong">
+                        <span className="ad-col-h">강점</span>
+                        {a.strengths.length ? (
+                          <ul>{a.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        ) : (
+                          <p className="ad-empty">—</p>
+                        )}
+                      </div>
+                      <div className="ad-col ad-weak">
+                        <span className="ad-col-h">약점</span>
+                        {a.weaknesses.length ? (
+                          <ul>{a.weaknesses.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        ) : (
+                          <p className="ad-empty">—</p>
+                        )}
+                      </div>
+                      <div className="ad-col ad-rec">
+                        <span className="ad-col-h">개선 제안</span>
+                        {a.recommendations.length ? (
+                          <ul>{a.recommendations.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        ) : (
+                          <p className="ad-empty">—</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.beforeAfter && result.beforeAfter.length > 0 && (
+            <div className="viz-card">
+              <h3 className="viz-title">Before → After 개선안 (검색 노출 강화)</h3>
+              <div className="ba-table-wrap">
+                <table className="ba-table">
+                  <thead>
+                    <tr>
+                      <th>요소</th>
+                      <th>현재 (Before)</th>
+                      <th>개선안 (After)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.beforeAfter.map((b, i) => (
+                      <tr key={i}>
+                        <td className="ba-el">{b.element}</td>
+                        <td className="ba-before">{b.before}</td>
+                        <td className="ba-after">{b.afterA}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {result.quickWins && result.quickWins.length > 0 && (
+            <div className="viz-card">
+              <h3 className="viz-title">Quick Wins — 즉시 실행 과제</h3>
+              <table className="qw-table">
+                <thead>
+                  <tr>
+                    <th>과제</th>
+                    <th>임팩트</th>
+                    <th>노력</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.quickWins.map((q, i) => (
+                    <tr key={i}>
+                      <td>
+                        <strong>{q.title}</strong>
+                        <span className="qw-desc">{q.description}</span>
+                      </td>
+                      <td>
+                        <span className={`qw-badge imp-${q.impact}`}>{impactBadge(q.impact)}</span>
+                      </td>
+                      <td>
+                        <span className={`qw-badge eff-${q.effort}`}>{impactBadge(q.effort)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {result.roadmap && result.roadmap.length > 0 && (
+            <div className="viz-card">
+              <h3 className="viz-title">30 / 60 / 90일 실행 로드맵</h3>
+              <div className="roadmap-grid">
+                {result.roadmap.map((r) => (
+                  <div className={`rm-col rm-${r.phase}`} key={r.phase}>
+                    <div className="rm-phase">{r.phase}일</div>
+                    <div className="rm-title">{r.title}</div>
+                    <p className="rm-desc">{r.description}</p>
+                    <div className="rm-outcome">🎯 {r.expectedOutcome}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.naver && result.naver.items.length > 0 && (
+            <div className="viz-card">
+              <h3 className="viz-title">
+                네이버 서치어드바이저 점검 · {result.naver.score}/100
+              </h3>
+              <div className="naver-summary">
+                <span className="ns-chip ns-pass">통과 {result.naver.pass}</span>
+                <span className="ns-chip ns-warn">주의 {result.naver.warn}</span>
+                <span className="ns-chip ns-fail">미흡 {result.naver.fail}</span>
+                <span className="ns-chip ns-manual">수동 {result.naver.manual}</span>
+              </div>
+              <div className="naver-bar">
+                {(["pass", "warn", "fail", "manual"] as const).map((k) => {
+                  const total =
+                    result.naver!.pass + result.naver!.warn + result.naver!.fail + result.naver!.manual;
+                  const val = result.naver![k];
+                  return val > 0 ? (
+                    <span
+                      key={k}
+                      className={`nbar-seg nbar-${k}`}
+                      style={{ width: `${(val / total) * 100}%` }}
+                      title={`${NAVER_BADGE[k].label} ${val}`}
+                    />
+                  ) : null;
+                })}
+              </div>
+              <details className="naver-details">
+                <summary>항목별 점검 결과 {result.naver.items.length}건 펼치기</summary>
+                <table className="naver-table">
+                  <thead>
+                    <tr>
+                      <th>상태</th>
+                      <th>항목</th>
+                      <th>조치</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.naver.items.map((it, i) => {
+                      const b = NAVER_BADGE[it.status] ?? NAVER_BADGE.manual;
+                      return (
+                        <tr key={i}>
+                          <td>
+                            <span className={`nb-badge ${b.cls}`}>{b.label}</span>
+                          </td>
+                          <td>
+                            <strong>{it.title}</strong>
+                            <span className="nt-cat">{it.category}</span>
+                          </td>
+                          <td className="nt-action">{it.action}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </details>
+            </div>
+          )}
+
           <details className="report-details">
-            <summary>전체 상세 보고서 펼치기 (표·체크리스트 포함)</summary>
+            <summary>전체 보고서 원문 (Markdown 전체 · 텍스트)</summary>
             <div className="report-md">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {result.markdown}
