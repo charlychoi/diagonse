@@ -153,3 +153,42 @@ describe("tech-artifact filtering (regression: sangsangwoori 'hover' bug)", () =
     );
   });
 });
+
+describe("Korean particle & slogan handling (regression: 상상우리 '중장년의 경험과')", () => {
+  it("strips particles and drops abstract slogan fragments", () => {
+    const s = fakeSignals({
+      title: "상상우리",
+      description: "중장년의 경험과 지혜과 사회혁신의 자원이 되도록, 상상우리",
+      h1s: [],
+      h2s: [],
+      bodyText: "중장년의 경험과 지혜과 사회혁신의 자원이 되도록 상상우리",
+    });
+    const kws = extractContentKeywords(s, s.bodyText, "상상우리");
+    // pure slogan fragments like "경험과 지혜과", "자원이 되도록" must be gone
+    assert.ok(
+      !kws.some((k) => /경험과|지혜과|자원이|되도록/.test(k)),
+      `slogan fragments leaked: ${kws.join(", ")}`,
+    );
+  });
+
+  it("thin JS-rendered site → honest warning note, not fabricated keywords", () => {
+    const s = fakeSignals({
+      title: "상상우리",
+      description: "함께 만드는 미래",
+      h1s: [],
+      h2s: [],
+      bodyText: "함께 미래 가치",
+    });
+    const st = buildHeuristicStrategy(s, { url: s.url, company: "상상우리" }, s.bodyText);
+    assert.ok(
+      st.notes.some((n) => n.includes("자바스크립트") || n.includes("직접 입력")),
+      "should warn about thin content",
+    );
+  });
+
+  it("respects user-supplied keywords over thin-content mining", () => {
+    const s = fakeSignals({ title: "상상우리", description: "슬로건", h1s: [], h2s: [], bodyText: "슬로건" });
+    const st = buildHeuristicStrategy(s, { url: s.url, company: "상상우리", keywords: ["시니어 일자리"] }, s.bodyText);
+    assert.equal(st.primaryService, "시니어 일자리");
+  });
+});

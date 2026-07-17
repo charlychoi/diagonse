@@ -93,6 +93,32 @@ function isBusinessToken(tok: string): boolean {
   return true;
 }
 
+/** Strip trailing Korean particles so "경험과"→"경험", "자원이"→"자원" */
+function stripParticle(tok: string): string {
+  return tok.replace(/(으로|에서|에게|까지|부터|이나|과|와|을|를|이|가|은|는|의|에|도|만|로)$/u, "").trim();
+}
+
+/**
+ * Abstract mission/slogan words that are NOT searchable service keywords.
+ * On JS-rendered builder sites the only crawlable Korean text is often the
+ * company slogan; these words must not become "service keywords".
+ */
+const ABSTRACT_WORDS = new Set([
+  "경험", "지혜", "사회혁신", "혁신", "자원", "되도록", "가치", "미래", "함께",
+  "행복", "희망", "사랑", "정성", "최고", "최선", "약속", "비전", "미션", "철학",
+  "세상", "변화", "성장", "동행", "여정", "이야기", "스토리", "감동", "신뢰",
+]);
+
+function cleanToken(tok: string): string | null {
+  const parts = tok.split(" ").map(stripParticle).filter(Boolean);
+  if (!parts.length) return null;
+  const joined = parts.join(" ");
+  // drop if every part is an abstract slogan word
+  if (parts.every((p) => ABSTRACT_WORDS.has(p))) return null;
+  if (joined.length < 2) return null;
+  return joined;
+}
+
 function tokenize(text: string): string[] {
   return (text || "")
     .replace(/[^가-힣a-zA-Z0-9\s]/g, " ")
@@ -157,8 +183,16 @@ export function extractContentKeywords(
     .sort((a, b) => b[1] - a[1])
     .map(([k]) => k);
 
-  // prefer bigrams (more specific) near the top
-  return ranked
+  // clean particles / drop slogan-only fragments, dedupe, prefer bigrams
+  const cleaned: string[] = [];
+  const seen = new Set<string>();
+  for (const k of ranked) {
+    const c = cleanToken(k);
+    if (!c || seen.has(c)) continue;
+    seen.add(c);
+    cleaned.push(c);
+  }
+  return cleaned
     .sort((a, b) => Number(b.includes(" ")) - Number(a.includes(" ")))
     .slice(0, limit);
 }
@@ -197,10 +231,16 @@ function heuristicService(
     }
   }
   if (input.industry?.trim()) return input.industry.trim().split(/[·,/]/)[0].trim();
-  // mined is already business-filtered (Korean); take the first
+  // mined is already business-filtered & particle-cleaned; take the first
   const minedKo = mined.find((m) => /[가-힣]/.test(m));
   if (minedKo) return minedKo;
   return "핵심 서비스";
+}
+
+/** True when the crawl yielded almost no real service content (JS-rendered / thin) */
+function isThinContent(signals: ParsedSiteSignals, mined: string[]): boolean {
+  const bodyKo = (signals.bodyText || "").replace(/[^가-힣]/g, "").length;
+  return bodyKo < 200 || mined.length < 2;
 }
 
 export function buildHeuristicStrategy(
@@ -210,16 +250,17 @@ export function buildHeuristicStrategy(
 ): KeywordStrategy {
   const brand = (input.company || "").trim() || signals.hostname.split(".")[0];
   const mined = extractContentKeywords(signals, bodyText, brand);
+  const thin = isThinContent(signals, mined) && !input.keywords?.length && !input.industry;
   const service = heuristicService(signals, input, mined);
   const regions = extractRegions(bodyText);
   const region = regions[0] ?? "";
 
   const tier2Base = mined
-    .filter((k) => k !== service && !service.includes(k))
-    .slice(0, 5)
+    .filter((k) => k !== service && !service.includes(k) && !k.includes(service))
+    .slice(0, 3)
     .map((k) => ({
-      keyword: /[가-힣]/.test(k) && !k.includes(service) ? `${k}` : k,
-      intent: "홈페이지 본문에서 발견된 빈출 주제 — 검색량·경쟁도 실측 후 채택",
+      keyword: k,
+      intent: "홈페이지 본문에서 발견된 주제 후보 — 실제 서비스명으로 교체·검증 필요",
     }));
 
   return {
@@ -257,7 +298,9 @@ export function buildHeuristicStrategy(
       ...(region ? [`${region}에서 ${service} 이용하는 방법`] : []),
     ],
     notes: [
-      "휴리스틱 모드 결과입니다 — 본문 빈출 키워드 기반이며, ANTHROPIC_API_KEY 설정 시 AI가 검색 의도·경쟁 관점까지 반영해 재설계합니다.",
+      thin
+        ? "⚠ 이 홈페이지는 자바스크립트로 렌더링되어 크롤 가능한 본문이 거의 없습니다. 아래 키워드는 제목·슬로건에서 추정한 것이라 실제 서비스와 다를 수 있습니다. 정확한 진단을 위해 (1) 진단 시 핵심 키워드를 직접 입력하시거나, (2) 서버에 ANTHROPIC_API_KEY를 설정해 AI 모드를 켜주세요."
+        : "휴리스틱 모드 결과입니다 — 본문 빈출 키워드 기반이며, ANTHROPIC_API_KEY 설정 시 AI가 검색 의도·경쟁 관점까지 반영해 재설계합니다.",
       "키워드별 월간 검색량·경쟁도는 네이버 검색광고 키워드 도구에서 실측 후 확정하세요.",
     ],
   };
