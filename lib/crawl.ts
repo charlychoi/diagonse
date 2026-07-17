@@ -44,6 +44,18 @@ export type ParsedSiteSignals = {
   hasAnalyticsHints: boolean;
   hasNav: boolean;
   hasFooter: boolean;
+  /** JSON-LD @type values detected (Organization, LocalBusiness, FAQPage, ...) */
+  schemaTypes: string[];
+  /** phone numbers detected (tel: links or Korean phone patterns) */
+  phones: string[];
+  /** address hints detected (도로명/지번 patterns) */
+  addressHints: string[];
+  /** review / rating signal present (aggregateRating, 리뷰/평점/후기) */
+  hasReviewSignal: boolean;
+  /** embedded map (Google/Naver/Kakao) detected */
+  hasMapEmbed: boolean;
+  /** business hours / 영업시간 signal */
+  hasHours: boolean;
   pageCountCrawled: number;
   pages: string[];
   rawSnippets: {
@@ -245,6 +257,12 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
       hasAnalyticsHints: false,
       hasNav: false,
       hasFooter: false,
+      schemaTypes: [],
+      phones: [],
+      addressHints: [],
+      hasReviewSignal: false,
+      hasMapEmbed: false,
+      hasHours: false,
       pageCountCrawled: 0,
       pages: [],
       rawSnippets: { title: null, description: null, firstH1: null },
@@ -304,6 +322,42 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
     }
   }
 
+  // ---- local / trust signals ----
+  const schemaTypes = [
+    ...new Set(
+      [...combined.matchAll(/"@type"\s*:\s*"([^"]+)"/gi)].map((m) => m[1].trim()),
+    ),
+  ].slice(0, 20);
+
+  const phoneSet = new Set<string>();
+  for (const m of combined.matchAll(/tel:\+?([0-9\-() ]{7,})/gi)) {
+    phoneSet.add(m[1].replace(/[()\s]/g, "").trim());
+  }
+  for (const m of text.matchAll(/(0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}|1\d{3}[-\s]?\d{4})/g)) {
+    phoneSet.add(m[1].replace(/\s/g, ""));
+  }
+  const phones = [...phoneSet].slice(0, 5);
+
+  const addrSet = new Set<string>();
+  for (const m of text.matchAll(
+    /((?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[^,\n]{0,40}?(?:로|길)\s?\d{1,4}(?:[-\d]*)?)/g,
+  )) {
+    addrSet.add(m[1].trim());
+  }
+  const addressHints = [...addrSet].slice(0, 3);
+
+  const hasReviewSignal =
+    /aggregateRating|"Review"|ratingValue|reviewCount|리뷰|평점|별점|후기|★|⭐/i.test(
+      combined,
+    );
+  const hasMapEmbed =
+    /google\.com\/maps|maps\.google|map\.naver\.com|place\.map\.kakao|maps\.googleapis|map\.kakao\.com/i.test(
+      combined,
+    );
+  const hasHours = /영업\s?시간|영업일|운영\s?시간|openingHours|평일\s?\d|주말\s?\d|월~금|오전\s?\d.*오후\s?\d/i.test(
+    combined,
+  );
+
   return {
     url: home.finalUrl || url,
     hostname: base.hostname,
@@ -342,6 +396,12 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
       ),
     hasNav: /<nav\b/i.test(combined) || /role=["']navigation["']/i.test(combined),
     hasFooter: /<footer\b/i.test(combined),
+    schemaTypes,
+    phones,
+    addressHints,
+    hasReviewSignal,
+    hasMapEmbed,
+    hasHours,
     pageCountCrawled: pages.length,
     pages: pages.map((p) => p.finalUrl || p.url),
     rawSnippets: {

@@ -1,6 +1,7 @@
 import { AXIS_META, type DiagnosisResult } from "./types";
 
 import { buildFaqJsonLd } from "./ai-strategy";
+import { formatLocalSeoMarkdown } from "./local-seo";
 
 function impactLabel(v: string): string {
   if (v === "high") return "높음";
@@ -195,6 +196,12 @@ export function buildMarkdownReport(
   // Naver Search Advisor compliance
   if (result.naverSeo?.markdown) {
     lines.push(result.naverSeo.markdown.trim());
+    lines.push(``);
+  }
+
+  // Google Business Profile / Local SEO strategy
+  if (result.localSeo) {
+    lines.push(formatLocalSeoMarkdown(result.localSeo).trim());
     lines.push(``);
   }
 

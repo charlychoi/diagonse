@@ -1,6 +1,7 @@
 /** MarkDiag core domain types (PRD Phase 1 MVP) */
 
 import type { NaverSeoReport } from "./naver-seo-guide";
+import type { LocalSeoReport } from "./local-seo";
 import type { ScoreReliability } from "./score-reliability";
 import type { SearchMeasureBundle } from "./search-measure";
 import type { SeoPlaybook } from "./seo-playbook";
@@ -133,6 +134,8 @@ export type DiagnosisResult = {
   searchMeasure: SearchMeasureBundle;
   /** Naver Search Advisor guide compliance checklist */
   naverSeo: NaverSeoReport;
+  /** Google Business Profile / local SEO strategy */
+  localSeo: LocalSeoReport;
   methodology: string;
   markdownReport: string;
 };

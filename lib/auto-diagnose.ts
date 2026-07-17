@@ -61,6 +61,22 @@ export type AutoDiagnoseResponse = {
       action: string;
     }[];
   };
+  local: {
+    score: number;
+    ok: number;
+    warn: number;
+    missing: number;
+    manual: number;
+    nap: { name: string; phones: string[]; addresses: string[]; region: string };
+    schemaTypes: string[];
+    hasOrgSchema: boolean;
+    hasLocalBusinessSchema: boolean;
+    items: { status: string; category: string; title: string; detail: string; action: string }[];
+    panelPlan: { step: string; why: string }[];
+    organizationJsonLd: string;
+    localBusinessJsonLd: string;
+    verifyLinks: { label: string; url: string; why: string }[];
+  };
   brandVisibility: DiagnosisResult["seoPlaybook"]["brandVisibility"];
   beforeAfter: {
     element: string;
@@ -239,6 +255,24 @@ export async function runAutoDiagnose(
         detail: i.detail,
         action: i.action,
       })),
+    },
+    local: {
+      score: result.localSeo.score,
+      ok: result.localSeo.ok,
+      warn: result.localSeo.warn,
+      missing: result.localSeo.missing,
+      manual: result.localSeo.manual,
+      nap: result.localSeo.nap,
+      schemaTypes: result.localSeo.schemaTypes,
+      hasOrgSchema: result.localSeo.hasOrgSchema,
+      hasLocalBusinessSchema: result.localSeo.hasLocalBusinessSchema,
+      items: result.localSeo.items.map((i) => ({
+        status: i.status, category: i.category, title: i.title, detail: i.detail, action: i.action,
+      })),
+      panelPlan: result.localSeo.panelPlan,
+      organizationJsonLd: result.localSeo.organizationJsonLd,
+      localBusinessJsonLd: result.localSeo.localBusinessJsonLd,
+      verifyLinks: result.localSeo.verifyLinks,
     },
     brandVisibility: result.seoPlaybook.brandVisibility,
     beforeAfter: result.seoPlaybook.beforeAfter.map((b) => ({

@@ -2,6 +2,7 @@ import type { ParsedSiteSignals } from "./crawl";
 import { crawlAndParse } from "./crawl";
 import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
+import { evaluateLocalSeo } from "./local-seo";
 import { buildSearchMeasureBundle } from "./search-measure";
 import { buildSeoPlaybook } from "./seo-playbook";
 import { buildKeywordStrategy } from "./ai-strategy";
@@ -714,6 +715,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     extraKeywords: keywordStrategy.tier2.slice(0, 3).map((t) => t.keyword),
   });
   const naverSeo = evaluateNaverSeo(signals, effInput);
+  const localSeo = evaluateLocalSeo(signals, effInput);
 
   const partial: Omit<DiagnosisResult, "markdownReport"> = {
     id,
@@ -737,6 +739,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     seoPlaybook,
     searchMeasure,
     naverSeo,
+    localSeo,
     keywordStrategy,
     methodology,
   };

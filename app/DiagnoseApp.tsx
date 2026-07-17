@@ -22,6 +22,20 @@ type RoadmapItem = { phase: "30" | "60" | "90"; title: string; description: stri
 type NaverItem = { status: string; category: string; title: string; detail: string; action: string };
 type BeforeAfter = { element: string; before: string; afterA: string; brandSearchWhy?: string };
 type QuickWin = { title: string; description: string; impact: string; effort: string };
+type LocalItem = { status: string; category: string; title: string; detail: string; action: string };
+type LocalSeo = {
+  score: number;
+  ok: number; warn: number; missing: number; manual: number;
+  nap: { name: string; phones: string[]; addresses: string[]; region: string };
+  schemaTypes: string[];
+  hasOrgSchema: boolean;
+  hasLocalBusinessSchema: boolean;
+  items: LocalItem[];
+  panelPlan: { step: string; why: string }[];
+  organizationJsonLd: string;
+  localBusinessJsonLd: string;
+  verifyLinks: { label: string; url: string; why: string }[];
+};
 type KeywordTier = { keyword: string; intent: string };
 type KeywordStrategy = {
   source: "ai" | "heuristic";
@@ -57,6 +71,7 @@ type DiagnoseOk = {
   naver?: { score: number; pass: number; warn: number; fail: number; manual: number; items: NaverItem[] };
   beforeAfter?: BeforeAfter[];
   quickWins?: QuickWin[];
+  local?: LocalSeo;
   input: { url: string; company: string; keywords?: string[]; industry?: string };
 };
 
@@ -79,6 +94,12 @@ function impactBadge(v: string): string {
   if (v === "medium") return "중간";
   return "낮음";
 }
+const LOCAL_BADGE: Record<string, { cls: string; label: string }> = {
+  ok: { cls: "nb-pass", label: "양호" },
+  warn: { cls: "nb-warn", label: "보강" },
+  missing: { cls: "nb-fail", label: "미흡" },
+  manual: { cls: "nb-manual", label: "수동확인" },
+};
 
 type DiagnoseErr = { ok: false; error: string };
 
@@ -528,6 +549,78 @@ export function DiagnoseApp() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {result.local && result.local.items.length > 0 && (
+            <div className="viz-card">
+              <h3 className="viz-title">
+                구글 지도·지식 패널 & 로컬 SEO · {result.local.score}/100
+              </h3>
+              <p className="viz-sub">
+                구글에서 <strong>회사명 검색 시 우측 지도·회사정보 패널</strong>이 뜨게 하고,
+                네이버 플레이스·리뷰로 신뢰를 높이는 전략입니다.
+              </p>
+              <div className="nap-row">
+                <span className="nap-chip">
+                  📞 전화 {result.local.nap.phones.length ? result.local.nap.phones.join(", ") : "미검출"}
+                </span>
+                <span className="nap-chip">
+                  📍 주소 {result.local.nap.addresses.length ? result.local.nap.addresses.join(", ") : "미검출"}
+                </span>
+                <span className={`nap-chip ${result.local.hasOrgSchema ? "nap-ok" : "nap-no"}`}>
+                  Organization {result.local.hasOrgSchema ? "○" : "×"}
+                </span>
+                <span className={`nap-chip ${result.local.hasLocalBusinessSchema ? "nap-ok" : "nap-no"}`}>
+                  LocalBusiness {result.local.hasLocalBusinessSchema ? "○" : "×"}
+                </span>
+              </div>
+
+              <div className="panel-plan">
+                <div className="pp-title">🗺 구글 지도·지식 패널 노출 전략 (순서대로)</div>
+                <ol>
+                  {result.local.panelPlan.map((p, i) => (
+                    <li key={i}>
+                      <strong>{p.step}</strong>
+                      <span className="pp-why">{p.why}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <details className="local-details">
+                <summary>로컬 SEO 점검 {result.local.items.length}건 · 붙여넣기용 구조화 데이터</summary>
+                <table className="naver-table">
+                  <thead>
+                    <tr><th>상태</th><th>항목</th><th>조치</th></tr>
+                  </thead>
+                  <tbody>
+                    {result.local.items.map((it, i) => {
+                      const b = LOCAL_BADGE[it.status] ?? LOCAL_BADGE.manual;
+                      return (
+                        <tr key={i}>
+                          <td><span className={`nb-badge ${b.cls}`}>{b.label}</span></td>
+                          <td><strong>{it.title}</strong><span className="nt-cat">{it.category}</span></td>
+                          <td className="nt-action">{it.action}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="jsonld-block">
+                  <div className="jsonld-h">Organization JSON-LD (홈 &lt;head&gt;에 삽입)</div>
+                  <pre>{result.local.organizationJsonLd}</pre>
+                  <div className="jsonld-h">LocalBusiness JSON-LD (지도 패널용)</div>
+                  <pre>{result.local.localBusinessJsonLd}</pre>
+                </div>
+                <div className="verify-links">
+                  {result.local.verifyLinks.map((v, i) => (
+                    <a key={i} href={v.url} target="_blank" rel="noreferrer" className="verify-chip">
+                      🔗 {v.label}
+                    </a>
+                  ))}
+                </div>
+              </details>
             </div>
           )}
 
