@@ -1,0 +1,237 @@
+.manual-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(3, 199, 90, 0.08), transparent 28%),
+    radial-gradient(circle at 88% 8%, rgba(13, 110, 216, 0.08), transparent 30%),
+    linear-gradient(180deg, #f7fafc 0%, #fff 40%, #f4f8fd 100%);
+  color: #0f2341;
+}
+
+.manual-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(6, 31, 67, 0.08);
+}
+
+.manual-topbar-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.manual-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.manual-brand strong {
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  color: #061f43;
+}
+
+.manual-brand span {
+  font-size: 13px;
+  font-weight: 800;
+  color: #687992;
+}
+
+.manual-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.manual-nav a {
+  color: #1d314f;
+  text-decoration: none;
+}
+
+.manual-nav a:hover {
+  color: #0d6ed8;
+}
+
+.manual-home-btn {
+  display: inline-flex;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #061f43;
+  color: #fff !important;
+  font-weight: 900;
+}
+
+.manual-doc {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+  word-break: keep-all;
+}
+
+.manual-doc h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  margin: 0 0 16px;
+  color: #061f43;
+}
+
+.manual-doc h2 {
+  margin: 40px 0 14px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(6, 31, 67, 0.08);
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  color: #061f43;
+}
+
+.manual-doc h2:first-of-type {
+  border-top: 0;
+}
+
+.manual-doc h3 {
+  margin: 28px 0 10px;
+  font-size: 18px;
+  color: #0a326f;
+}
+
+.manual-doc p,
+.manual-doc li {
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: #243b55;
+  font-weight: 550;
+}
+
+.manual-doc a {
+  color: #0d6ed8;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.manual-doc blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 4px solid #03c75a;
+  background: #f0faf4;
+  border-radius: 0 12px 12px 0;
+  color: #1d314f;
+}
+
+.manual-doc blockquote p {
+  margin: 0;
+}
+
+.manual-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 24px;
+  font-size: 14px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(9, 37, 82, 0.06);
+}
+
+.manual-doc th,
+.manual-doc td {
+  border: 1px solid rgba(6, 31, 67, 0.08);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.manual-doc th {
+  background: #eef5ff;
+  color: #061f43;
+  font-weight: 900;
+}
+
+.manual-doc tr:nth-child(even) td {
+  background: #fafcfe;
+}
+
+.manual-doc pre {
+  margin: 14px 0 20px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #0b1b33;
+  color: #e8eef8;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.manual-doc code {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.9em;
+}
+
+.manual-doc :not(pre) > code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #eef3f9;
+  color: #0a326f;
+  font-weight: 700;
+}
+
+.manual-doc ul,
+.manual-doc ol {
+  padding-left: 22px;
+  margin: 10px 0 18px;
+}
+
+.manual-doc hr {
+  border: 0;
+  border-top: 1px solid rgba(6, 31, 67, 0.1);
+  margin: 32px 0;
+}
+
+.manual-footer {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+  font-size: 13px;
+  color: #687992;
+  font-weight: 650;
+}
+
+.manual-footer a {
+  color: #0d6ed8;
+}
+
+.manual-footer-note {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff8ef;
+  border: 1px solid rgba(255, 122, 26, 0.2);
+  color: #5c3d12;
+}
+
+@media (max-width: 640px) {
+  .manual-nav a:not(.manual-home-btn) {
+    display: none;
+  }
+
+  .manual-doc table {
+    display: block;
+    overflow-x: auto;
+  }
+}

@@ -27,6 +27,23 @@ export default function Home() {
         <br />
         슬래시: <code>/diagonse https://example.com 회사명</code>
       </p>
+      <p style={{ marginTop: 20 }}>
+        <a
+          href="/manual"
+          style={{
+            display: "inline-flex",
+            padding: "14px 22px",
+            borderRadius: 999,
+            background: "#061f43",
+            color: "#fff",
+            fontWeight: 900,
+            textDecoration: "none",
+            boxShadow: "0 12px 28px rgba(6,31,67,.18)",
+          }}
+        >
+          📖 사용자 매뉴얼 전체 보기 →
+        </a>
+      </p>
 
       <section
         style={{
