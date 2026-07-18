@@ -32,7 +32,7 @@
     "@vitejs/plugin-rsc": "0.5.26",
     "react-server-dom-webpack": "19.2.6",
     "tsx": "4.20.4",
-    "typescript": "5.9.3",
+    "typescript": "^5.9.3",
     "vinext": "0.0.50",
     "vite": "8.0.13",
     "wrangler": "4.92.0"

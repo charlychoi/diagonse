@@ -675,3 +675,32 @@
   background: #eef3f9; color: #0d6ed8; text-decoration: none; border: 1px solid #d5e3f5;
 }
 .verify-chip:hover { background: #e0ecfb; }
+
+/* ---- result tab navigation (readability) ---- */
+.result-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 18px;
+  position: sticky; top: 0; z-index: 5;
+  background: linear-gradient(180deg, #f5f8fc 70%, rgba(245,248,252,0));
+  padding: 10px 0 8px;
+}
+.rtab {
+  border: 1.5px solid #dbe6f2; background: #fff; color: #40536f;
+  padding: 8px 15px; border-radius: 999px; font-size: 13.5px; font-weight: 700;
+  cursor: pointer; transition: .15s; font-family: inherit;
+}
+.rtab:hover { border-color: #0d6ed8; color: #0d6ed8; }
+.rtab.on { background: #061f43; border-color: #061f43; color: #fff; }
+
+/* show only the active tab group */
+.result-section .tab-item { display: none; }
+.result-section[data-tab="summary"] .grp-summary,
+.result-section[data-tab="search"] .grp-search,
+.result-section[data-tab="biz"] .grp-biz,
+.result-section[data-tab="action"] .grp-action,
+.result-section[data-tab="raw"] .grp-raw { display: block; }
+
+/* export bar stays visible across tabs (it is not a tab-item) */
+@media (max-width: 640px) {
+  .result-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .rtab { white-space: nowrap; }
+}

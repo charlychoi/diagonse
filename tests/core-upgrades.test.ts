@@ -98,7 +98,7 @@ describe("5 core AI precheck upgrades", () => {
     assert.equal(withCompetitors.ok, true);
     if (withCompetitors.ok) {
       assert.equal(withCompetitors.data.competitors?.length, 3);
-      assert.ok(withCompetitors.data.competitors?.every((url) => url.startsWith("http")));
+      assert.ok([withCompetitors.data.competitors ?? []].flat().every((url: string) => url.startsWith("http")));
     }
   });
 

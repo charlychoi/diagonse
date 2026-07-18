@@ -142,6 +142,7 @@ export function DiagnoseApp() {
   const [competitors, setCompetitors] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
   const [showOptional, setShowOptional] = useState(false);
+  const [tab, setTab] = useState<"summary" | "search" | "biz" | "action" | "raw">("summary");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -436,7 +437,7 @@ export function DiagnoseApp() {
       </form>
 
       {result && (
-        <section className="result-section" aria-live="polite">
+        <section className="result-section" data-tab={tab} aria-live="polite">
           <div className="score-grid">
             <div className="score-card">
               <div className="label">표면 점수</div>
@@ -457,8 +458,29 @@ export function DiagnoseApp() {
 
           <div className="summary-box">{result.summary}</div>
 
+          <nav className="result-tabs" role="tablist">
+            {([
+              ["summary", "📊 요약·AI전략"],
+              ["search", "🔑 검색·키워드"],
+              ["biz", "🏆 전환·경쟁·로컬"],
+              ["action", "🚀 실행 계획"],
+              ["raw", "📄 전체 원문"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                className={"rtab" + (tab === key ? " on" : "")}
+                onClick={() => setTab(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
           {result.aiPrecheck?.enabled && (
-            <div className="viz-card ai-strategy-card">
+            <div className="viz-card ai-strategy-card tab-item grp-summary">
               <h3 className="viz-title">AI 심층 전략 · {result.aiPrecheck.model}</h3>
               <p className="viz-sub">{result.aiPrecheck.summary}</p>
               {result.aiPrecheck.priorities.length > 0 && (
@@ -510,7 +532,7 @@ export function DiagnoseApp() {
           )}
 
           {result.hero && result.conversion && result.adReadiness && (
-            <div className="core-diagnostics">
+            <div className="core-diagnostics tab-item grp-biz">
               {[
                 { title: "첫 화면 메시지", score: result.hero.score, summary: result.hero.summary, checks: result.hero.checks },
                 { title: "전환 동선", score: result.conversion.score, summary: result.conversion.summary, checks: result.conversion.checks },
@@ -534,7 +556,7 @@ export function DiagnoseApp() {
           )}
 
           {result.servicePages && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-biz">
               <h3 className="viz-title">서비스·상품 페이지 상세 진단</h3>
               <p className="viz-sub">{result.servicePages.summary}</p>
               {result.servicePages.pages.length > 0 ? (
@@ -558,7 +580,7 @@ export function DiagnoseApp() {
           )}
 
           {result.competitorComparison?.enabled && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-biz">
               <h3 className="viz-title">경쟁사 표면 신호 비교 · {result.competitorComparison.source === "ai" ? "AI 자동 선정" : "직접 입력"}</h3>
               <p className="viz-sub">{result.competitorComparison.summary}</p>
               <div className="ba-table-wrap">
@@ -572,7 +594,7 @@ export function DiagnoseApp() {
           )}
 
           {result.axes && result.axes.length > 0 && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-summary">
               <h3 className="viz-title">5개 영역 표면 점수</h3>
               <div className="axis-bars">
                 {result.axes.map((a) => (
@@ -600,7 +622,7 @@ export function DiagnoseApp() {
           )}
 
           {result.keywordStrategy && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-search">
               <h3 className="viz-title">
                 키워드 전략 — 회사명이 아닌 핵심 키워드로 노출되기
               </h3>
@@ -652,7 +674,7 @@ export function DiagnoseApp() {
           )}
 
           {result.axes && result.axes.some((a) => a.strengths?.length || a.weaknesses?.length) && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-search">
               <h3 className="viz-title">영역별 상세 진단 (강점·약점·개선)</h3>
               <div className="axis-detail-list">
                 {result.axes.map((a) => (
@@ -702,7 +724,7 @@ export function DiagnoseApp() {
           )}
 
           {result.local && result.local.items.length > 0 && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-biz">
               <h3 className="viz-title">
                 홈페이지 로컬 SEO 준비도 · {result.local.score}/100
               </h3>
@@ -753,7 +775,7 @@ export function DiagnoseApp() {
           )}
 
           {result.beforeAfter && result.beforeAfter.length > 0 && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-search">
               <h3 className="viz-title">Before → After 개선안 (검색 노출 강화)</h3>
               <div className="ba-table-wrap">
                 <table className="ba-table">
@@ -779,7 +801,7 @@ export function DiagnoseApp() {
           )}
 
           {result.quickWins && result.quickWins.length > 0 && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-action">
               <h3 className="viz-title">Quick Wins — 즉시 실행 과제</h3>
               <table className="qw-table">
                 <thead>
@@ -810,7 +832,7 @@ export function DiagnoseApp() {
           )}
 
           {result.roadmap && result.roadmap.length > 0 && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-action">
               <h3 className="viz-title">30 / 60 / 90일 실행 로드맵</h3>
               <div className="roadmap-grid">
                 {result.roadmap.map((r) => (
@@ -826,7 +848,7 @@ export function DiagnoseApp() {
           )}
 
           {result.naver && result.naver.items.length > 0 && (
-            <div className="viz-card">
+            <div className="viz-card tab-item grp-search">
               <h3 className="viz-title">
                 네이버 서치어드바이저 점검 · {result.naver.score}/100
               </h3>
@@ -883,7 +905,7 @@ export function DiagnoseApp() {
             </div>
           )}
 
-          <details className="report-details">
+          <details className="report-details tab-item grp-raw">
             <summary>전체 보고서 원문 (Markdown 전체 · 텍스트)</summary>
             <div className="report-md">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
