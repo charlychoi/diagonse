@@ -19,9 +19,6 @@ export default function Home() {
             >
               GitHub
             </a>
-            <Link href="/manual" className="ghost">
-              도움말
-            </Link>
           </nav>
         </div>
       </header>
@@ -36,7 +33,7 @@ export default function Home() {
               diagnose.charlychoi.chatgpt.site
             </a>
             {" · "}
-            매뉴얼: <Link href="/manual">/manual</Link>
+            사용자 설명서: <Link href="/manual">/manual</Link>
             {" · "}
             저장소:{" "}
             <a
