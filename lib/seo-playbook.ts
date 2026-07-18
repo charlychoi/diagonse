@@ -411,7 +411,7 @@ export function buildSeoPlaybook(
   }
   if (!rootCauses.length) {
     rootCauses.push(
-      `표면 신호는 양호한 편 — 네이버 실검색(‘${compound}’·유관어·브랜드 단독)으로 공식 홈·블로그 연결을 재검증할 것`,
+      `AI 분석상 준비 상태는 양호한 편 — 네이버 실검색(‘${compound}’·유관어·브랜드 단독)으로 공식 홈·블로그 연결을 재검증할 것`,
     );
   }
 
@@ -420,7 +420,7 @@ export function buildSeoPlaybook(
       ? `네이버에서 ‘${compound}’(회사명+메인 서비스) 및 유관 검색어로 찾을 때 공식 홈·블로그가 약하게 보이거나, 엉뚱한 정보·경쟁사 결과가 먼저 노출될 수 있습니다. 회사명 단독 SEO만으로는 이 문제가 해결되지 않습니다.`
       : binding.level === "보통"
         ? `‘${brand}’–‘${primaryService}’ 연결은 일부 있으나 H1·전문 표현·부가사업 희석·히어로 텍스트 빈틈으로 ‘${compound}’ 검색 시인성이 흔들릴 수 있습니다.`
-        : `홈 표면상 ‘${brand}’–‘${primaryService}’ 연결 신호는 양호합니다. ‘${compound}’·유관 검색과 채널(블로그·플레이스) 메시지가 같은 방향인지 실측하세요.`;
+        : `홈페이지 분석상 ‘${brand}’–‘${primaryService}’ 연결 신호는 양호합니다. ‘${compound}’·유관 검색과 채널(블로그·플레이스) 메시지가 같은 방향인지 실측하세요.`;
 
   const sideEffect =
     `대표 실패 패턴: ‘${compound}’로 검색해도 자사 홈·블로그와 안 묶이면 경쟁사·무관 정보가 노출됩니다. ` +
@@ -791,7 +791,7 @@ export function buildSeoPlaybook(
       question: `네이버 ‘${compound}’ 검색 연결 준비도`,
       answer:
         brandInTitle && serviceInTitle && serviceInH1 && !h1Bad && !diluted
-          ? "표면상 준비됨 — 실검색으로 확정"
+          ? "AI 분석상 준비됨 — 실검색으로 확정"
           : "미흡 — 공식홈 미연결·경쟁 노출 위험",
       note: sideEffect.slice(0, 90) + "…",
     },

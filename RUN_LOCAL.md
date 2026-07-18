@@ -6,9 +6,9 @@
 
 - **Node.js 22.13 이상** — 터미널에서 `node -v` 로 확인. 없으면 https://nodejs.org 에서 LTS 설치.
 - **Git** — `git --version`
-- **AI API 키** (아래 둘 중 하나)
+- **AI API 키** (아래 중 하나)
   - 공개 방식(권장): **Anthropic Claude** 키 — https://console.anthropic.com → API Keys
-  - 내부 테스트 방식: **xAI Grok** 키 — https://console.x.ai
+  - 내부 테스트 방식: **xAI Grok**(https://console.x.ai) · **OpenAI GPT**(https://platform.openai.com/api-keys) · **Google Gemini**(https://aistudio.google.com/apikey) 중 하나
 
 ## 2. 내려받기 & 설치
 
@@ -31,15 +31,24 @@ ANTHROPIC_MODEL=claude-sonnet-4-5
 
 > 모델명은 본인 계정에서 쓸 수 있는 값으로. 오류가 나면 `claude-3-5-sonnet-latest` 로 바꿔보세요.
 
-### 방법 B — 내부 테스트 방식(Grok 4.5)
+### 방법 B — 내부 테스트 방식(Grok / GPT / Gemini)
 
 ```
 AI_MODE=internal
+
+# 셋 중 하나만 넣으면 됩니다
 XAI_API_KEY=xai-여기에_본인_키
 XAI_MODEL=grok-4.5
+
+OPENAI_API_KEY=sk-여기에_본인_키
+OPENAI_MODEL=gpt-5
+
+GEMINI_API_KEY=여기에_본인_키
+GEMINI_MODEL=gemini-2.5-pro
 ```
 
-> `AI_MODE=internal` 이 있어야 Grok이 동작합니다. 없으면 공개 방식(Claude)로 처리됩니다.
+> `AI_MODE=internal` 이 있어야 위 3개 중 하나가 동작합니다. 없으면 공개 방식(Claude)로 처리됩니다.
+> 키를 여러 개 넣었다면 `AI_PROVIDER=xai` 처럼 명시해서 하나를 고르세요. 비워두면 xai → openai → gemini 순으로 값이 있는 첫 번째 키를 씁니다.
 
 키를 아무것도 넣지 않아도 앱은 실행되지만, AI 없이 규칙 기반 결과만 나옵니다.
 

@@ -29,21 +29,21 @@ export const AXIS_META: Record<
   brand: {
     label: "Brand & Positioning",
     labelKo: "브랜드·포지셔닝",
-    description: "title·H1·About 등 공개 메시지 정렬 (HTML 표면)",
+    description: "제목·H1·회사소개 등 홈페이지에 게시된 메시지 정렬 상태를 AI가 분석",
     notMeasured: "브랜드 검색 시 실제 노출·지도 패널·NAP 통일",
     measureHow: "검색 실측(브랜드 쿼리) + 6대 D6",
   },
   contentSeo: {
     label: "Content & SEO",
     labelKo: "콘텐츠·SEO",
-    description: "메타·본문 분량·H2 등 온페이지 마크업 (HTML 표면)",
+    description: "요약 설명·본문 분량·소제목 구성 등 페이지 콘텐츠를 AI가 분석",
     notMeasured: "네이버/구글 순위·색인율·키워드 1페이지 실노출",
     measureHow: "검색 실측 링크 확인 + 6대 D1",
   },
   uxConversion: {
     label: "Website UX & Conversion",
     labelKo: "UX·전환",
-    description: "CTA 문구·폼 태그·뷰포트 존재 여부 (HTML 표면)",
+    description: "행동 유도 문구·문의 폼·모바일 대응 여부를 AI가 분석",
     notMeasured: "로그인 장벽·문의 이탈·실제 전환율(퍼널 걷기)",
     measureHow: "6대 D5에서 손님 여정 통과/차단 기록",
   },
@@ -57,7 +57,7 @@ export const AXIS_META: Record<
   authorityAi: {
     label: "Authority & AI Search",
     labelKo: "권위·AI 검색",
-    description: "스키마·HTTPS·정책 페이지 등 기술 신호 (HTML 표면)",
+    description: "구조화 데이터·보안 연결·정책 페이지 등 신뢰 신호를 AI가 분석",
     notMeasured: "AI 추천 여부·리뷰 수·플레이스 실측",
     measureHow: "6대 D6 AI/플레이스 문항 + 검색 실측",
   },
@@ -135,6 +135,8 @@ export type CompetitorComparisonReport = {
   source: "user" | "ai" | "none";
   competitors: {
     url: string;
+    /** Company/brand name — from AI web-search candidate when source="ai", else derived from crawled title/hostname */
+    name: string | null;
     title: string | null;
     h1: string | null;
     hasDescription: boolean;
@@ -154,7 +156,7 @@ export type CompetitorComparisonReport = {
 
 export type AiPrecheckReport = {
   enabled: boolean;
-  provider: "anthropic" | "openai" | "xai" | "none";
+  provider: "anthropic" | "openai" | "xai" | "gemini" | "none";
   model: string | null;
   usedWebSearch: boolean;
   summary: string;

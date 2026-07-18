@@ -22,7 +22,7 @@ export const STRUCTURE_SCORE = {
   label: "구조 진단 점수",
   labelEn: "Structure Score",
   method:
-    "D1~D6 실측·체크 입력 기반. 정상=1 / 주의=0.5 / 취약=0, 미입력 제외 후 가중 재배분",
+    "6가지 항목에 직접 답하며 진행하는 정밀 진단 기준. 각 항목을 정상/주의/취약으로 답하면, 안 다룬 항목은 빼고 나머지 비중을 다시 나눠 계산합니다.",
   authoritative: true,
   weights: { d1: 15, d2: 10, d3: 25, d4: 15, d5: 15, d6: 20 },
 };
@@ -30,10 +30,10 @@ export const STRUCTURE_SCORE = {
 /** URL crawl screening scale */
 export const SURFACE_SCORE = {
   id: "surface_url" as const,
-  label: "표면 신호 점수",
-  labelEn: "Surface Score",
+  label: "AI 진단 점수",
+  labelEn: "AI Diagnosis Score",
   method:
-    "공개 HTML 경량 크롤 휴리스틱. 검색 순위·채널 운영·전환 병목 실측을 포함하지 않음",
+    "AI가 홈페이지에 게시된 콘텐츠·구조·메시지를 분석해 매긴 점수. 실시간 검색 순위, 채널 운영 이력, 실제 상담 전환 과정은 별도 확인이 필요합니다.",
   authoritative: false,
 };
 
@@ -108,34 +108,34 @@ export function assessSurfaceConfidence(signals: ParsedSiteSignals): {
   if (signals.pageCountCrawled === 0) {
     return {
       confidence: "low",
-      reason: "HTML 수집 실패·차단 — 공개 신호 부족, 추정 비중 큼",
+      reason: "홈페이지 접속이 차단되어 있어 AI가 콘텐츠를 충분히 가져오지 못했습니다",
       dampen: 0.82,
     };
   }
   if (signals.pageCountCrawled === 1 && core <= 2) {
     return {
       confidence: "low",
-      reason: "단일 페이지만 수집되었고 핵심 메타/H1 신호가 약함",
+      reason: "한 페이지만 분석했고 제목·H1 같은 핵심 정보도 부족합니다",
       dampen: 0.88,
     };
   }
   if (signals.pageCountCrawled === 1) {
     return {
       confidence: "medium",
-      reason: "홈 1페이지만 분석 — 검색·채널·전환 실측은 미포함 (중간 신뢰)",
+      reason: "홈페이지 1개 페이지를 분석했습니다 — 실제 검색 노출·채널 운영·상담 전환까지는 포함하지 않습니다",
       dampen: 0.94,
     };
   }
   if (core >= 3 && signals.pageCountCrawled >= 2) {
     return {
       confidence: "medium",
-      reason: "복수 페이지 수집 — 표면 신호는 양호하나 6대 실측 대비 신뢰 한도 있음",
+      reason: "여러 페이지를 분석해 근거는 충분하나, 실제 검색·상담 데이터까지 확인한 것은 아닙니다",
       dampen: 0.97,
     };
   }
   return {
     confidence: "medium",
-    reason: "제한된 페이지 신호 기반 중간 신뢰",
+    reason: "일부 페이지만 분석되어 중간 수준의 신뢰도로 판단했습니다",
     dampen: 0.93,
   };
 }
@@ -179,9 +179,9 @@ export function surfaceCeilings(signals: ParsedSiteSignals): {
   // Even with full surface signals, URL-only cannot exceed 82 (structure excellence needs D-scale)
   ceiling = Math.min(ceiling, 82);
   if (ceiling === 82 && reasons.length === 0) {
-    reasons.push("URL 표면 진단 절대 상한 82 (구조 우수 판정은 6대 실측 필요)");
-  } else if (!reasons.some((r) => r.includes("절대 상한"))) {
-    reasons.push("URL 표면 진단 절대 상한 82");
+    reasons.push("AI 진단 점수 자체의 상한선은 82점 — 그 이상의 우수 판정은 6대 자가진단으로 직접 확인 필요");
+  } else if (!reasons.some((r) => r.includes("상한선"))) {
+    reasons.push("AI 진단 점수 자체의 상한선은 82점");
   }
 
   if (ceiling >= 100) return { ceiling: null, reason: null };
@@ -232,11 +232,11 @@ export function finalizeSurfaceScore(
     ceilingReason:
       ceiling != null && damped > ceiling ? ceilingReason : ceilingReason,
     crossScaleNote:
-      `이 숫자는 "${SURFACE_SCORE.label}"입니다. 6대 자가진단의 "${STRUCTURE_SCORE.label}"와 척도가 다릅니다. ` +
-      `표면 점수가 높아도 검색 색인·콘텐츠 CTA·전환 병목·브랜드 신호(NAP)가 약하면 구조 점수는 크게 낮아질 수 있습니다. ` +
-      `현재 표면 점수 기준 구조 점수 예상 대역은 약 ${range.low}~${range.high}점입니다.`,
+      `이 숫자는 "${SURFACE_SCORE.label}"입니다 — AI가 홈페이지에 게시된 콘텐츠와 구조를 분석해 매긴 점수입니다. 직접 답하며 진행하는 "${STRUCTURE_SCORE.label}"(6대 자가진단)과는 채점 방식이 달라 그대로 비교할 수 없습니다. ` +
+      `AI 진단 점수가 높아도 실제 검색 노출, 문의·상담으로 이어지는 과정, 상호·주소·전화번호 통일 같은 부분은 직접 확인해야 정확히 알 수 있어, 6대 자가진단 점수는 다르게 나올 수 있습니다. ` +
+      `지금 점수를 기준으로 6대 자가진단을 진행하면 대략 ${range.low}~${range.high}점 사이가 나올 것으로 예상됩니다(참고용 추정치).`,
     nextStep:
-      "신뢰 가능한 최종 점수가 필요하면 6대 자가진단(실측 체크)을 완료하세요. 구조 진단 점수가 컨설팅 기준 점수입니다.",
+      "실제 상담 전환·검색 순위까지 반영한 최종 점수가 필요하면 6대 자가진단(직접 답하며 진행하는 정밀 진단)을 진행해 보세요.",
     expectedStructureRange: range,
   };
 
@@ -244,11 +244,11 @@ export function finalizeSurfaceScore(
 }
 
 export const SCORE_COMPARISON_HELP = {
-  title: "왜 URL 자동진단과 6대 자가진단 점수가 다른가요?",
+  title: "왜 AI 진단 점수와 6대 자가진단 점수가 다른가요?",
   bullets: [
-    "측정 대상이 다름: URL=공개 HTML 표면 / 6대=검색·콘텐츠 운영·채널·전환·브랜드 실측",
-    "점수 산식이 다름: URL=가산점 휴리스틱 / 6대=정상·주의·취약 삼진 + 가중(콘텐츠 25%·브랜드 20%)",
-    "낙관 편향: 메타·OG·반응형만 있어도 URL 점수는 쉽게 오르지만, CTA 0%·전환 차단이면 6대는 급락",
-    "최종 기준: 구조 진단 점수(6대) · URL 점수는 스크리닝·우선순위 힌트용",
+    "보는 대상이 다릅니다: AI 진단은 공개된 홈페이지 콘텐츠와 구조를 분석하고, 6대 자가진단은 검색 노출·콘텐츠 운영·채널·상담 전환·브랜드까지 직접 확인해서 매깁니다.",
+    "계산 방식이 다릅니다: AI 진단은 있으면 가점을 더하는 방식이고, 6대 자가진단은 정상/주의/취약 3단계로 답한 뒤 항목별 비중(콘텐츠 25%·브랜드 20% 등)을 반영해 계산합니다.",
+    "AI 진단 점수는 후하게 나오기 쉽습니다: 요약 설명·공유 미리보기·모바일 대응만 있어도 점수가 쉽게 오르지만, 실제로 문의 버튼이 안 눌리거나 상담이 막히면 6대 자가진단 점수는 크게 떨어질 수 있습니다.",
+    "실제 컨설팅 기준 점수는 6대 자가진단입니다 — AI 진단 점수는 어디부터 손볼지 우선순위를 잡는 참고용입니다.",
   ],
 };

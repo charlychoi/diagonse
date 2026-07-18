@@ -28,7 +28,7 @@ type HeroReport = { score: number; headline: string | null; subcopy: string | nu
 type ConversionReport = { score: number; checks: DiagnosticCheck[]; paths: { ctaTexts: string[]; tel: number; email: number; kakao: number; naver: number; booking: number; contactPages: number; forms: number }; summary: string; topActions: string[] };
 type AdReadiness = { score: number; level: string; summary: string; checks: DiagnosticCheck[]; topActions: string[] };
 type ServicePages = { pages: { url: string; title: string | null; h1: string | null; score: number; checks: DiagnosticCheck[] }[]; summary: string; topActions: string[] };
-type CompetitorReport = { enabled: boolean; source: "user" | "ai" | "none"; competitors: { url: string; title: string | null; error?: string; strengths: string[] }[]; comparison: { item: string; ours: string; competitors: string; interpretation: string }[]; summary: string; topActions: string[] };
+type CompetitorReport = { enabled: boolean; source: "user" | "ai" | "none"; competitors: { url: string; name: string | null; title: string | null; error?: string; strengths: string[] }[]; comparison: { item: string; ours: string; competitors: string; interpretation: string }[]; summary: string; topActions: string[] };
 type AiPrecheck = {
   enabled: boolean;
   provider: "openai" | "xai" | "none";
@@ -281,12 +281,12 @@ export function DiagnoseApp() {
       <form className="home-card" onSubmit={onSubmit}>
         <h2>진단 정보 입력</h2>
         <p className="hint">
-          필수 2항목만 채우면 됩니다. Grok 4.5 API가 웹 검색과 심층 분석을 수행합니다.
+          필수 2항목만 채우면 됩니다. AI가 웹 검색과 심층 분석을 수행합니다.
         </p>
 
         <div className="ai-engine-fixed">
-          <strong>AI 분석 엔진 · Grok 4.5 API</strong>
-          <span>실시간 웹 검색으로 경쟁사 후보와 개선 전략을 생성합니다. API 키는 이 맥북의 로컬 서버에만 보관됩니다.</span>
+          <strong>AI 분석 엔진</strong>
+          <span>GPT·Claude·Gemini·Grok 중 서버에 설정된 API 키로 실시간 웹 검색과 심층 분석을 수행합니다. API 키는 서버에만 안전하게 보관되며 외부에 노출되지 않습니다.</span>
         </div>
 
         <div className="field">
@@ -441,7 +441,7 @@ export function DiagnoseApp() {
         <section className="result-section" data-tab={tab} aria-live="polite">
           <div className="score-grid">
             <div className="score-card">
-              <div className="label">표면 점수</div>
+              <div className="label">AI 진단 점수</div>
               <div className="value">{result.scores.surfaceScore}</div>
               <div className="sub">등급 {result.scores.grade}</div>
             </div>
@@ -582,8 +582,19 @@ export function DiagnoseApp() {
 
           {result.competitorComparison?.enabled && (
             <div className="viz-card tab-item grp-biz">
-              <h3 className="viz-title">경쟁사 표면 신호 비교 · {result.competitorComparison.source === "ai" ? "AI 자동 선정" : "직접 입력"}</h3>
+              <h3 className="viz-title">경쟁사 비교 · {result.competitorComparison.source === "ai" ? "AI 자동 선정" : "직접 입력"}</h3>
               <p className="viz-sub">{result.competitorComparison.summary}</p>
+              {result.competitorComparison.competitors.length > 0 && (
+                <ul className="kw-note" style={{ listStyle: "none", padding: 0, margin: "0 0 12px" }}>
+                  {result.competitorComparison.competitors.map((c) => (
+                    <li key={c.url}>
+                      {c.error
+                        ? <>{c.name || c.url} — <span style={{ opacity: 0.7 }}>{c.error}</span></>
+                        : <a href={c.url} target="_blank" rel="noopener noreferrer">{c.name || c.title || c.url}</a>}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="ba-table-wrap">
                 <table className="ba-table">
                   <thead><tr><th>비교 항목</th><th>우리 홈페이지</th><th>경쟁사</th><th>보완 우선순위</th></tr></thead>
@@ -596,7 +607,7 @@ export function DiagnoseApp() {
 
           {result.axes && result.axes.length > 0 && (
             <div className="viz-card tab-item grp-summary">
-              <h3 className="viz-title">5개 영역 표면 점수</h3>
+              <h3 className="viz-title">5개 영역 AI 진단 점수</h3>
               <div className="axis-bars">
                 {result.axes.map((a) => (
                   <div className="axis-row" key={a.key}>

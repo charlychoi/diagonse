@@ -3,17 +3,29 @@ import type { CompetitorComparisonReport, DiagnosisInput } from "./types";
 
 function yes(value: boolean): string { return value ? "있음" : "없음"; }
 
-export async function evaluateCompetitors(ours: ParsedSiteSignals, input: DiagnosisInput, source: "user" | "ai" | "none" = "user"): Promise<CompetitorComparisonReport> {
+function hostnameOf(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
+export async function evaluateCompetitors(
+  ours: ParsedSiteSignals,
+  input: DiagnosisInput,
+  source: "user" | "ai" | "none" = "user",
+  nameHints: { url: string; name: string }[] = [],
+): Promise<CompetitorComparisonReport> {
   const urls = (input.competitors || []).slice(0, 3);
   if (!urls.length) return { enabled: false, source: "none", competitors: [], comparison: [], summary: "경쟁사 URL을 입력하지 않았고 AI 자동 후보도 없어 비교를 생략했습니다.", topActions: [] };
+  const nameByUrl = new Map(nameHints.map((h) => [h.url, h.name]));
   const results = await Promise.all(urls.map(async (url) => {
+    const hintedName = nameByUrl.get(url) ?? null;
     try {
       const s = await crawlAndParse(url);
-      if (!s.pageCountCrawled) return { url, title: null, h1: null, hasDescription: false, hasCta: false, hasForm: false, hasBlog: false, hasJsonLd: false, hasContact: false, wordCount: 0, strengths: [], error: "홈페이지 HTML을 수집하지 못했습니다." };
+      const name = hintedName || s.title || hostnameOf(url);
+      if (!s.pageCountCrawled) return { url, name, title: null, h1: null, hasDescription: false, hasCta: false, hasForm: false, hasBlog: false, hasJsonLd: false, hasContact: false, wordCount: 0, strengths: [], error: "홈페이지 HTML을 수집하지 못했습니다." };
       const strengths = [s.description && "메타 설명", s.hasCtaHints && "CTA", s.hasForm && "폼", s.hasBlog && "콘텐츠 허브", s.hasJsonLd && "구조화 데이터", s.hasContact && "문의 경로"].filter(Boolean) as string[];
-      return { url: s.url, title: s.title, h1: s.h1s[0] ?? null, hasDescription: Boolean(s.description), hasCta: s.hasCtaHints, hasForm: s.hasForm, hasBlog: s.hasBlog, hasJsonLd: s.hasJsonLd, hasContact: s.hasContact, wordCount: s.wordCount, strengths };
+      return { url: s.url, name, title: s.title, h1: s.h1s[0] ?? null, hasDescription: Boolean(s.description), hasCta: s.hasCtaHints, hasForm: s.hasForm, hasBlog: s.hasBlog, hasJsonLd: s.hasJsonLd, hasContact: s.hasContact, wordCount: s.wordCount, strengths };
     } catch {
-      return { url, title: null, h1: null, hasDescription: false, hasCta: false, hasForm: false, hasBlog: false, hasJsonLd: false, hasContact: false, wordCount: 0, strengths: [], error: "경쟁사 URL 분석 중 오류가 발생했습니다." };
+      return { url, name: hintedName || hostnameOf(url), title: null, h1: null, hasDescription: false, hasCta: false, hasForm: false, hasBlog: false, hasJsonLd: false, hasContact: false, wordCount: 0, strengths: [], error: "경쟁사 URL 분석 중 오류가 발생했습니다." };
     }
   }));
   const valid = results.filter((r) => !r.error);
@@ -28,5 +40,5 @@ export async function evaluateCompetitors(ours: ParsedSiteSignals, input: Diagno
     { item: "본문 분량", ours: `${ours.wordCount}단어`, competitors: n ? `평균 ${Math.round(valid.reduce((s, r) => s + r.wordCount, 0) / n)}단어` : "비교 불가", interpretation: n && ours.wordCount < valid.reduce((s, r) => s + r.wordCount, 0) / n ? "경쟁사 대비 서비스 설명과 신뢰 콘텐츠를 더 구체화할 여지가 있습니다." : "본문 분량은 경쟁사 평균과 비슷하거나 많습니다." },
   ];
   const topActions = comparison.filter((c) => /우선|부족|보강|여지/.test(c.interpretation)).map((c) => c.interpretation).slice(0, 4);
-  return { enabled: true, source, competitors: results, comparison, summary: valid.length ? `${source === "ai" ? "AI 웹 검색이 자동 선정한" : "사용자가 입력한"} ${valid.length}개 경쟁사 홈페이지의 공개 표면 신호와 비교했습니다. 실제 매출·광고 성과가 아닌 보완 우선순위 참고용입니다.` : "경쟁사 홈페이지를 수집하지 못해 비교하지 않았습니다.", topActions };
+  return { enabled: true, source, competitors: results, comparison, summary: valid.length ? `${source === "ai" ? "AI 웹 검색이 자동 선정한" : "사용자가 입력한"} ${valid.length}개 경쟁사 홈페이지에 게시된 정보를 AI가 분석해 비교했습니다. 실제 매출·광고 성과가 아닌 보완 우선순위 참고용입니다.` : "경쟁사 홈페이지를 수집하지 못해 비교하지 않았습니다.", topActions };
 }

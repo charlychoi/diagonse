@@ -30,4 +30,26 @@ describe("resolveAiConfig — 공개=Claude / 내부=Grok 게이팅", () => {
     assert.equal(c.provider, "none");
     assert.equal(aiEnabled({}), false);
   });
+
+  it("내부: AI_MODE=internal + OPENAI 키면 openai(GPT)", () => {
+    const c = resolveAiConfig({ AI_MODE: "internal", OPENAI_API_KEY: "sk-openai" });
+    assert.equal(c.provider, "openai");
+    assert.equal(c.mode, "internal");
+  });
+
+  it("내부: AI_MODE=internal + GEMINI 키면 gemini", () => {
+    const c = resolveAiConfig({ AI_MODE: "internal", GEMINI_API_KEY: "gm" });
+    assert.equal(c.provider, "gemini");
+    assert.equal(c.mode, "internal");
+  });
+
+  it("내부: 여러 키가 있으면 AI_PROVIDER로 명시 선택", () => {
+    const c = resolveAiConfig({ AI_MODE: "internal", XAI_API_KEY: "xai", OPENAI_API_KEY: "sk-openai", AI_PROVIDER: "openai" });
+    assert.equal(c.provider, "openai");
+  });
+
+  it("내부: AI_PROVIDER 미지정 시 xai → openai → gemini 순으로 첫 번째 키 사용", () => {
+    const c = resolveAiConfig({ AI_MODE: "internal", OPENAI_API_KEY: "sk-openai", GEMINI_API_KEY: "gm" });
+    assert.equal(c.provider, "openai");
+  });
 });

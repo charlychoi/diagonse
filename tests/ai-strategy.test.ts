@@ -193,3 +193,24 @@ describe("Korean particle & slogan handling (regression: 상상우리 '중장년
     assert.equal(st.primaryService, "시니어 일자리");
   });
 });
+
+describe("404/오류 페이지 상용구 필터링 (regression: theserveon.com '페이지 또' 버그)", () => {
+  it("excludes soft-404 boilerplate fragments from mined keywords", () => {
+    const s = fakeSignals({
+      title: "서브온",
+      description: "병원동행 전문 서비스",
+      h1s: ["병원동행 서비스"],
+      h2s: [],
+      bodyText:
+        "서브온은 병원동행 전문 서비스입니다. 수면내시경 보호자 동행을 제공합니다. " +
+        "Error Page 페이지 또는 디렉토리가 없습니다. 시스템 관리자에게 통보되었으며, 조속히 처리하겠습니다.",
+    });
+    const kws = extractContentKeywords(s, s.bodyText, "서브온");
+    const junk = ["페이지 또", "또 디렉토리", "디렉토리 없습니다", "디렉토리", "페이지", "또는"];
+    assert.ok(
+      !kws.some((k) => junk.includes(k)),
+      `404 boilerplate leaked into keywords: ${kws.filter((k) => junk.some((j) => k.includes(j))).join(", ")}`,
+    );
+    assert.ok(kws.some((k) => k.includes("병원동행")), "should still surface real business keywords");
+  });
+});

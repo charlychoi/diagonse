@@ -229,6 +229,23 @@ async function fetchPage(
   }
 }
 
+/**
+ * Detects soft-404 pages: sites that return HTTP 200 for a broken/guessed
+ * path but render a custom "page not found" page instead of real content.
+ * Without this, guessed paths like /about or /pricing that don't exist on a
+ * given site get miscounted as real crawled pages and their boilerplate
+ * ("요청하신 페이지 또는 디렉토리가 없습니다" etc.) pollutes keyword mining
+ * and word-count/page-count signals.
+ */
+const SOFT_404_RE =
+  /(?:요청하신\s*)?페이지(?:\s*또는\s*디렉토리)?(?:\s*를|\s*가)?\s*(?:찾을\s*수\s*없습니다|없습니다)|존재하지\s*않는\s*페이지|잘못된\s*경로|404\s*(?:not\s*found|error)|page\s*not\s*found/i;
+
+function isSoft404(html: string): boolean {
+  const title = pageTitle(html) || "";
+  const snippet = stripTags(html).slice(0, 1000);
+  return SOFT_404_RE.test(title) || SOFT_404_RE.test(snippet);
+}
+
 function discoverPaths(base: URL, html: string): string[] {
   const candidates = new Set<string>();
   const defaults = [
@@ -328,8 +345,15 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
       .slice(0, 5)
       .map((u) => fetchPage(u, 8000)),
   );
+  const seenFinalUrls = new Set<string>([home.finalUrl || url]);
   for (const p of extras) {
-    if (p && p.status < 400 && p.html) pages.push(p);
+    if (!p || p.status >= 400 || !p.html) continue;
+    const finalUrl = p.finalUrl || p.url;
+    // Same redirect target already counted (common when a site 404s every
+    // guessed path to one generic error page), or the page is a soft-404.
+    if (seenFinalUrls.has(finalUrl) || isSoft404(p.html)) continue;
+    seenFinalUrls.add(finalUrl);
+    pages.push(p);
   }
 
   const combined = pages.map((p) => p.html).join("\n");

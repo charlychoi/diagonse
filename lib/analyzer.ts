@@ -15,16 +15,15 @@ import { evaluateAiPrecheck } from "./ai-precheck";
 import {
   finalizeSurfaceScore,
   gradeFromScore,
-  SURFACE_SCORE,
-  STRUCTURE_SCORE,
 } from "./score-reliability";
-import type {
-  AxisScore,
-  DiagnosisAxisKey,
-  DiagnosisInput,
-  DiagnosisResult,
-  QuickWin,
-  RoadmapItem,
+import {
+  AXIS_META,
+  type AxisScore,
+  type DiagnosisAxisKey,
+  type DiagnosisInput,
+  type DiagnosisResult,
+  type QuickWin,
+  type RoadmapItem,
 } from "./types";
 
 function clamp(n: number, min = 0, max = 100): number {
@@ -57,10 +56,10 @@ function scoreBrand(
 
   if (signals.description && signals.description.length >= 40) {
     score += 8;
-    strengths.push("메타 디스크립션이 존재합니다.");
+    strengths.push("검색 결과·카톡 공유 시 보이는 요약 설명(메타 디스크립션)이 있습니다.");
   } else {
-    weaknesses.push("메타 디스크립션이 없거나 너무 짧습니다.");
-    recommendations.push("검색·SNS 미리보기를 위해 120~160자 디스크립션을 작성하세요.");
+    weaknesses.push("검색 결과·카톡 공유 시 보이는 요약 설명(메타 디스크립션)이 없거나 너무 짧습니다.");
+    recommendations.push("검색 결과와 SNS 공유 화면에 노출될 요약 설명을 120~160자로 작성하세요.");
   }
 
   if (signals.h1s.length === 1) {
@@ -85,9 +84,9 @@ function scoreBrand(
 
   if (signals.hasOg) {
     score += 5;
-    strengths.push("Open Graph 메타 태그로 브랜드 공유 이미지가 준비되어 있습니다.");
+    strengths.push("카카오톡·페이스북 등에 링크를 공유할 때 보이는 미리보기 이미지(오픈그래프)가 설정되어 있습니다.");
   } else {
-    recommendations.push("OG 이미지·타이틀을 설정해 소셜 공유 시 브랜드 인지도를 높이세요.");
+    recommendations.push("링크를 공유할 때 보이는 미리보기 이미지·제목(오픈그래프 태그)을 설정해 브랜드 인지도를 높이세요.");
   }
 
   const kws = input.keywords ?? [];
@@ -98,10 +97,10 @@ function scoreBrand(
   if (kws.length > 0) {
     if (hits.length > 0) {
       score += Math.min(10, hits.length * 3);
-      strengths.push(`입력 키워드 노출: ${hits.join(", ")}`);
+      strengths.push(`핵심 키워드가 홈페이지 문구에 노출됨: ${hits.join(", ")}`);
     } else {
       score -= 4;
-      weaknesses.push("입력한 핵심 키워드가 홈 메시지에 거의 나타나지 않습니다.");
+      weaknesses.push("핵심 키워드가 홈페이지 문구에 거의 나타나지 않습니다.");
       recommendations.push(
         `랜딩 헤드라인·서브카피에 핵심 키워드(${kws.slice(0, 3).join(", ")})를 자연스럽게 반영하세요.`,
       );
@@ -139,17 +138,17 @@ function scoreContentSeo(
   if (signals.description) score += 6;
   if (signals.canonical) {
     score += 5;
-    strengths.push("Canonical URL이 설정되어 있습니다.");
+    strengths.push("같은 페이지가 여러 주소로 중복 인식되지 않도록 정리하는 대표 주소 표시(canonical 태그)가 되어 있습니다.");
   } else {
-    recommendations.push("중복 콘텐츠 방지를 위해 canonical 링크를 추가하세요.");
+    recommendations.push("검색엔진이 중복 페이지로 오인하지 않도록 대표 주소 표시(canonical 태그)를 추가하세요.");
   }
 
   if (signals.hasViewport) score += 3;
   if (signals.lang) {
     score += 3;
-    strengths.push(`언어 속성(lang=${signals.lang})이 지정되어 있습니다.`);
+    strengths.push(`홈페이지 사용 언어가 ${signals.lang === "ko" ? "한국어" : signals.lang}로 지정되어 있습니다.`);
   } else {
-    recommendations.push("html lang 속성으로 타겟 언어를 명시하세요.");
+    recommendations.push("홈페이지 소스에 사용 언어(한국어)를 명시하는 설정을 추가하세요.");
   }
 
   if (signals.wordCount >= 800) {
@@ -182,9 +181,9 @@ function scoreContentSeo(
 
   if (signals.hasSitemapHint) {
     score += 4;
-    strengths.push("Sitemap 관련 신호가 있습니다.");
+    strengths.push("검색엔진에 전체 페이지 목록을 알려주는 사이트맵이 있습니다.");
   } else {
-    recommendations.push("XML sitemap을 생성하고 Search Console에 제출하세요.");
+    recommendations.push("전체 페이지 목록을 검색엔진에 알려주는 사이트맵을 만들어 구글 서치콘솔에 등록하세요.");
   }
 
   const altRatio =
@@ -203,7 +202,7 @@ function scoreContentSeo(
   }
 
   findings.push(
-    "※ 검색 1페이지 노출·색인율은 HTML만으로 판정 불가 — 6대 D1 실측 필요",
+    "※ 네이버·구글 검색 1페이지 노출 여부는 홈페이지 화면만 보고는 알 수 없고, 실제 검색으로 직접 확인해야 합니다.",
   );
 
   if (input.targetCountry) {
@@ -237,19 +236,19 @@ function scoreUxConversion(signals: ParsedSiteSignals): AxisScore {
 
   if (signals.hasViewport) {
     score += 8;
-    strengths.push("모바일 viewport 메타가 설정되어 있습니다.");
+    strengths.push("휴대폰 화면 크기에 맞춰 자동으로 조절되는 설정(모바일 반응형)이 되어 있습니다.");
   } else {
     score -= 8;
-    weaknesses.push("모바일 viewport가 없습니다.");
-    recommendations.push("반응형 뷰포트 메타 태그를 추가하세요.");
+    weaknesses.push("휴대폰 화면 크기에 맞춰 자동으로 조절되는 설정(모바일 반응형)이 없습니다.");
+    recommendations.push("휴대폰에서도 화면이 자동으로 맞춰지도록 반응형 설정을 추가하세요.");
   }
 
   if (signals.hasNav) {
     score += 6;
-    strengths.push("네비게이션 구조가 확인됩니다.");
+    strengths.push("상단 메뉴(내비게이션) 구조가 확인됩니다.");
   } else {
-    weaknesses.push("명확한 nav 구조 신호가 약합니다.");
-    recommendations.push("핵심 여정을 안내하는 상단 네비게이션을 단순화하세요.");
+    weaknesses.push("상단 메뉴(내비게이션) 구조가 명확하지 않습니다.");
+    recommendations.push("방문자가 핵심 페이지를 쉽게 찾도록 상단 메뉴를 단순화하세요.");
   }
 
   if (signals.hasFooter) {
@@ -321,7 +320,7 @@ function scoreUxConversion(signals: ParsedSiteSignals): AxisScore {
   }
 
   findings.push(
-    "※ 로그인 장벽·문의 차단 등 퍼널 병목은 6대 D5에서만 확정 가능",
+    "※ 로그인 요구·문의 막힘 같은 실제 상담 과정의 병목은 직접 신청해봐야 정확히 알 수 있습니다.",
   );
 
   return finalizeAxis(
@@ -355,14 +354,14 @@ function scoreSocialPaid(
 
   if (signals.hasOg) {
     score += 8;
-    strengths.push("Open Graph로 공유 미리보기가 준비되어 있습니다.");
+    strengths.push("링크 공유 시 보이는 미리보기(오픈그래프)가 준비되어 있습니다.");
   } else {
-    recommendations.push("OG 태그를 설정해 광고·공유 클릭률을 높이세요.");
+    recommendations.push("링크 공유·광고 클릭률을 높이도록 공유 미리보기(오픈그래프 태그)를 설정하세요.");
   }
 
   if (signals.hasTwitterCard) {
     score += 4;
-    strengths.push("Twitter/X 카드 메타가 있습니다.");
+    strengths.push("X(트위터)에 공유할 때의 미리보기 설정도 되어 있습니다.");
   }
 
   const channels = input.channels ?? [];
@@ -383,15 +382,15 @@ function scoreSocialPaid(
 
   if (signals.hasAnalyticsHints) {
     score += 10;
-    strengths.push("분석/태그 매니저 관련 스크립트 신호가 있습니다.");
+    strengths.push("방문자 행동을 기록하는 분석 도구(예: 구글 애널리틱스)가 설치되어 있습니다.");
   } else {
     score -= 6;
-    weaknesses.push("GA/GTM 등 분석 태그 신호가 약합니다.");
-    recommendations.push("GA4 + 전환 이벤트를 설치해 유료 미디어 ROI를 측정하세요.");
+    weaknesses.push("방문자 행동을 기록하는 분석 도구(예: 구글 애널리틱스)가 보이지 않습니다.");
+    recommendations.push("구글 애널리틱스(GA4)를 설치하고 상담·문의 전환을 추적해, 광고비 대비 효과를 숫자로 확인하세요.");
   }
 
   findings.push(
-    "※ 채널 활동 주기·타깃 적합도는 6대 D4 실측(30/90일)에서 판정",
+    "※ 실제로 얼마나 자주 채널을 운영하고 타겟에 맞는지는 최근 30~90일 활동을 직접 확인해야 정확히 알 수 있습니다.",
   );
 
   return finalizeAxis(
@@ -414,36 +413,36 @@ function scoreAuthorityAi(signals: ParsedSiteSignals): AxisScore {
 
   if (signals.hasJsonLd || signals.hasSchemaOrg) {
     score += 16;
-    strengths.push("구조화 데이터(JSON-LD/Schema.org) 신호가 있습니다.");
+    strengths.push("검색엔진과 AI가 우리 정보를 자동으로 이해하도록 돕는 코드(구조화 데이터)가 있습니다.");
   } else {
     score -= 6;
-    weaknesses.push("구조화 데이터가 없습니다 — AI 검색·리치결과가 불리합니다.");
+    weaknesses.push("검색엔진과 AI가 우리 정보를 자동으로 이해하도록 돕는 코드(구조화 데이터)가 없어, 검색 결과 강조 노출이나 AI 답변 인용에 불리합니다.");
     recommendations.push(
-      "Organization, WebSite, FAQ, Article 스키마를 JSON-LD로 추가하세요.",
+      "회사 정보·서비스·자주 묻는 질문을 검색엔진이 읽을 수 있는 형식(구조화 데이터, 예: JSON-LD)으로 추가하세요.",
     );
   }
 
   if (signals.hasAbout) {
     score += 6;
-    strengths.push("브랜드/조직 소개 콘텐츠가 권위 신호로 작용합니다.");
+    strengths.push("회사·브랜드 소개 콘텐츠가 있어 신뢰도를 높이는 데 도움이 됩니다.");
   }
 
   if (signals.hasBlog) {
     score += 8;
-    strengths.push("콘텐츠 허브는 E-E-A-T와 AI 인용 가능성을 높입니다.");
+    strengths.push("꾸준히 글을 올리는 콘텐츠 공간(블로그)이 있어 전문성을 보여주고 AI가 인용할 가능성도 높입니다.");
   } else {
-    recommendations.push("전문성 증명용 가이드·케이스 스터디를 발행하세요.");
+    recommendations.push("전문성을 보여줄 수 있는 가이드·사례 글을 꾸준히 발행하세요.");
   }
 
   if (signals.description && signals.title) {
     score += 6;
-    strengths.push("기본 메타 정보가 AI 요약 추출에 도움이 됩니다.");
+    strengths.push("제목·요약 설명이 잘 갖춰져 있어 챗GPT 같은 AI가 요약할 때 도움이 됩니다.");
   }
 
   if (signals.wordCount >= 500) {
     score += 6;
   } else {
-    weaknesses.push("본문 정보가 적어 AI 검색 엔진이 인용할 컨텍스트가 부족합니다.");
+    weaknesses.push("본문 설명이 적어 AI가 답변할 때 참고할 내용이 부족합니다.");
   }
 
   if (signals.https) {
@@ -454,22 +453,22 @@ function scoreAuthorityAi(signals: ParsedSiteSignals): AxisScore {
 
   if (signals.hasPrivacy) {
     score += 3;
-    findings.push("정책 페이지는 신뢰·규정 준수 신호입니다.");
+    findings.push("개인정보처리방침 페이지가 있어 신뢰·법규 준수 신호로 작용합니다.");
   }
 
   if (signals.externalLinks > 5) {
-    findings.push(`외부 링크 ${signals.externalLinks}개 — 참조 네트워크 존재.`);
+    findings.push(`다른 사이트로 연결되는 링크가 ${signals.externalLinks}개 있어 참조 관계가 존재합니다.`);
     score += 3;
   }
 
   recommendations.push(
-    "llms.txt 또는 핵심 서비스 FAQ를 공개해 AI 검색 가시성을 높이세요.",
+    "핵심 서비스 FAQ를 공개하거나 llms.txt(AI가 사이트를 이해하도록 돕는 안내 파일)를 만들어 AI 검색 노출을 높이세요.",
   );
   recommendations.push(
     "저자/전문가 바이라인과 출처 명시를 콘텐츠에 추가하세요.",
   );
   findings.push(
-    "※ NAP 통일·플레이스·AI 추천 노출은 6대 D6 체크리스트로 확정",
+    "※ 상호·주소·전화번호가 여러 곳에서 통일되게 쓰이는지, 지도·AI 추천에 노출되는지는 별도 체크리스트로 확인이 필요합니다.",
   );
 
   return finalizeAxis(
@@ -613,24 +612,29 @@ function buildExecutiveSummary(
   axes: AxisScore[],
   signals: ParsedSiteSignals,
   input: DiagnosisInput,
+  keywordsAreUserProvided: boolean,
 ): string {
   const best = [...axes].sort((a, b) => b.score - a.score)[0];
   const worst = [...axes].sort((a, b) => a.score - b.score)[0];
+  const bestLabel = best ? AXIS_META[best.key].labelKo : "-";
+  const worstLabel = worst ? AXIS_META[worst.key].labelKo : "-";
   const host = signals.hostname;
   const crawlNote =
     signals.pageCountCrawled > 0
-      ? `${signals.pageCountCrawled}개 페이지를 수집·분석했습니다.`
-      : "대상 사이트 HTML을 충분히 수집하지 못해 공개 신호와 입력 정보 중심으로 추정 진단했습니다.";
+      ? `홈페이지 ${signals.pageCountCrawled}개 페이지의 콘텐츠와 구조를 AI가 분석했습니다.`
+      : "홈페이지 내용을 충분히 가져오지 못해, 입력하신 정보 위주로 AI가 추정해서 진단했습니다.";
 
   return (
-    `${host}의 **${SURFACE_SCORE.label}**는 **${overall}점(등급 ${grade})**입니다. ` +
-    `이는 6대 자가진단의 **${STRUCTURE_SCORE.label}와 다른 척도**이며, 공개 HTML 표면 신호만 반영합니다. ${crawlNote} ` +
-    `상대적으로 강한 표면 영역은 **${best?.key ?? "-"}(${best?.score ?? 0}점)**, ` +
-    `우선 개선이 필요한 영역은 **${worst?.key ?? "-"}(${worst?.score ?? 0}점)**입니다. ` +
+    `${host} 홈페이지에 실제로 게시된 콘텐츠·구조·메시지를 AI가 분석한 결과는 **${overall}점(등급 ${grade})**입니다. ` +
+    `다만 실시간 검색 순위나 실제 상담 전환율 자체를 측정한 것은 아니며, 그 부분은 직접 확인이 별도로 필요합니다. ${crawlNote} ` +
+    `5가지 항목 중 **${bestLabel}**이(가) 상대적으로 잘 되어 있고(${best?.score ?? 0}점), ` +
+    `**${worstLabel}**은(는) 가장 먼저 손봐야 할 부분입니다(${worst?.score ?? 0}점). ` +
     (input.keywords?.length
-      ? `핵심 키워드(${input.keywords.slice(0, 5).join(", ")}) 관점에서 메시지·콘텐츠 정합성을 함께 평가했습니다. `
+      ? keywordsAreUserProvided
+        ? `입력하신 핵심 키워드(${input.keywords.slice(0, 5).join(", ")})가 홈페이지 문구와 잘 맞는지도 함께 살펴봤습니다. `
+        : `AI가 홈페이지 내용을 분석해 찾아낸 핵심 키워드(${input.keywords.slice(0, 5).join(", ")})를 기준으로 문구가 잘 맞는지도 함께 살펴봤습니다. `
       : "") +
-    "최종 컨설팅 기준 점수가 필요하면 6대 자가진단(실측)을 이어서 진행하세요."
+    "아래 실행 계획부터 순서대로 확인해 우선순위가 높은 항목부터 개선해 보세요."
   );
 }
 
@@ -639,18 +643,18 @@ function buildKeyInsights(axes: AxisScore[], signals: ParsedSiteSignals): string
   const worst = [...axes].sort((a, b) => a.score - b.score)[0];
   const best = [...axes].sort((a, b) => b.score - a.score)[0];
 
-  if (best) insights.push(`강점 축: ${best.key} (${best.score}점) — ${best.strengths[0] ?? "상대적 우위"}`);
+  if (best) insights.push(`강점: ${AXIS_META[best.key].labelKo} (${best.score}점) — ${best.strengths[0] ?? "상대적으로 잘 되어 있는 부분"}`);
   if (worst)
     insights.push(
-      `약점 축: ${worst.key} (${worst.score}점) — ${worst.weaknesses[0] ?? "개선 여지 큼"}`,
+      `약점: ${AXIS_META[worst.key].labelKo} (${worst.score}점) — ${worst.weaknesses[0] ?? "가장 먼저 개선이 필요한 부분"}`,
     );
-  if (!signals.https) insights.push("보안(HTTPS) 미적용은 모든 축의 신뢰·전환을 동시에 깎습니다.");
+  if (!signals.https) insights.push("주소창에 자물쇠 표시(HTTPS 보안 연결)가 없으면 방문자 신뢰도와 상담 전환이 함께 떨어집니다.");
   if (!signals.hasAnalyticsHints)
-    insights.push("측정 기반이 약하면 유료 미디어와 콘텐츠 ROI를 증명하기 어렵습니다.");
+    insights.push("방문자 행동을 기록하는 분석 도구(예: 구글 애널리틱스)가 없으면 광고·콘텐츠 효과를 숫자로 증명하기 어렵습니다.");
   if (!(signals.hasJsonLd || signals.hasSchemaOrg))
-    insights.push("구조화 데이터 부재는 기존 SEO뿐 아니라 AI 검색 가시성에도 불리합니다.");
+    insights.push("검색엔진과 AI가 우리 정보를 자동으로 읽도록 돕는 코드(구조화 데이터)가 없으면 검색 노출과 AI 답변 인용에 불리합니다.");
   if (signals.hasCtaHints && signals.hasForm)
-    insights.push("CTA와 폼이 모두 있어 전환 퍼널의 기본 골격은 갖추고 있습니다.");
+    insights.push("행동 유도 문구(CTA)와 문의 폼이 모두 있어 상담·문의로 이어지는 기본 골격은 갖추고 있습니다.");
 
   return insights.slice(0, 6);
 }
@@ -701,18 +705,16 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
   const grade = gradeFromScore(overallScore);
   const quickWins = buildQuickWins(axes, signals);
   const roadmap = buildRoadmap(axes, signals, effInput);
+  const keywordsAreUserProvided = Boolean(input.keywords && input.keywords.length);
   const executiveSummary = buildExecutiveSummary(
     overallScore,
     grade,
     axes,
     signals,
     effInput,
+    keywordsAreUserProvided,
   );
-  const keyInsights = [
-    ...buildKeyInsights(axes, signals),
-    `점수 척도: ${reliability.scaleLabel} (신뢰도 ${reliability.confidence}) — ${reliability.confidenceReason}`,
-    reliability.crossScaleNote,
-  ].slice(0, 8);
+  const keyInsights = buildKeyInsights(axes, signals).slice(0, 6);
   const highImpactPriorities = axes
     .slice()
     .sort((a, b) => a.score - b.score)
@@ -722,13 +724,11 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
   const id = createDiagnosisId();
   const createdAt = new Date().toISOString();
   const methodology =
-    `${SURFACE_SCORE.label} 산출: 공개 HTML 경량 크롤 + 5축 휴리스틱(가중 평균) + 신뢰도 감쇠 + 상한 규칙. ` +
-    `원점수 ${reliability.rawScore} → 보정 후 ${overallScore}. ` +
-    `${STRUCTURE_SCORE.label}(6대 D1–D6, 정상/주의/취약 가중)와 척도가 다르며, 컨설팅 최종 기준은 구조 진단입니다. ` +
-    `검색 순위·채널 활동일·전환 병목·NAP 통일은 URL만으로 확정하지 않습니다. ` +
-    `SEO 실행 가이드(Before→After)는 before_after.md 실무 루틴을 일반화합니다. ` +
-    `목표는 회사명 단독 SEO가 아니라, ‘회사명+메인서비스’·유관 검색어에서 공식 홈이 연결되도록 title·meta·H1·히어로·채널 신호를 정렬하는 것입니다. ` +
-    `네이버 서치어드바이저 웹마스터 가이드(https://searchadvisor.naver.com/guide) 기준으로 robots·canonical·title·OG·모바일·구조화 데이터 등을 점검합니다.`;
+    `이 점수는 홈페이지 화면에 공개된 정보만 가져와(직접 방문하거나 로그인하지 않고), 5가지 항목을 각각 채점한 뒤 평균을 낸 것입니다(원점수 ${reliability.rawScore}점 → 신뢰도 보정 후 ${overallScore}점). ` +
+    `6대 자가진단(정상/주의/취약으로 직접 답하는 정밀 진단)과는 채점 방식이 달라서 점수를 그대로 비교할 수 없으며, 실제 컨설팅 기준은 6대 자가진단입니다. ` +
+    `실제 검색 순위, SNS 채널 운영 빈도, 상담 신청 시 막히는 지점, 상호·주소·전화번호가 여러 곳에서 통일되어 있는지는 홈페이지 화면만으로는 확정할 수 없습니다. ` +
+    `이 진단의 목표는 회사 이름만으로 검색될 때가 아니라, '회사명+핵심 서비스' 같은 실제 고객이 검색할 만한 문구로 검색했을 때 공식 홈페이지가 노출되도록, 제목·요약 설명·헤드라인·채널 정보를 정리하는 것입니다. ` +
+    `네이버 서치어드바이저 웹마스터 가이드(https://searchadvisor.naver.com/guide) 기준으로 검색로봇 허용 설정, 대표 주소 표시(canonical), 제목·공유 미리보기(OG), 모바일 대응, 구조화 데이터 등을 점검합니다.`;
 
   const seoPlaybook = buildSeoPlaybook(signals, effInput);
   const searchMeasure = buildSearchMeasureBundle({
@@ -756,9 +756,10 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     ? effInput
     : { ...effInput, competitors: aiCompetitors };
   const competitorSource = hasManualCompetitors ? "user" : aiCompetitors.length ? "ai" : "none";
+  const competitorNameHints = aiPrecheck.competitorCandidates.map((c) => ({ url: c.url, name: c.name }));
   const [localSeo, competitorComparison] = await Promise.all([
     evaluateLocalSeo(signals, effInput, aiPrecheck.googlePresence),
-    evaluateCompetitors(signals, competitorInput, competitorSource),
+    evaluateCompetitors(signals, competitorInput, competitorSource, competitorNameHints),
   ]);
 
   const partial: Omit<DiagnosisResult, "markdownReport"> = {

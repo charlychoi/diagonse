@@ -39,6 +39,24 @@ function mockSite(home = strongHtml, service = serviceHtml) {
   }) as typeof fetch;
 }
 
+const soft404Html = `<!doctype html><html><head><title>Error Page</title></head><body>
+  Error Page 페이지 또는 디렉토리가 없습니다. 시스템 관리자에게 통보되었으며, 조속히 처리하겠습니다.
+</body></html>`;
+
+describe("soft-404 crawl handling (regression: theserveon.com guessed-path bug)", () => {
+  it("excludes HTTP-200 error pages from crawled page count and body text", async () => {
+    // every guessed path (/about, /contact, ...) 404s to the same custom error page
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      const html = new URL(url).pathname === "/" ? strongHtml : soft404Html;
+      return new Response(html, { status: 200, headers: { "content-type": "text/html" } });
+    }) as typeof fetch;
+    const signals = await crawlAndParse("https://example.com");
+    assert.equal(signals.pageCountCrawled, 1, "only the real homepage should count");
+    assert.ok(!signals.bodyText.includes("디렉토리가 없습니다"), "soft-404 boilerplate must not leak into bodyText");
+  });
+});
+
 describe("5 core AI precheck upgrades", () => {
   it("extracts hero, conversion paths, and service page candidates from HTML", async () => {
     mockSite();
