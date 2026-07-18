@@ -18,11 +18,18 @@ export async function GET(request: Request) {
     time: new Date().toISOString(),
   };
   const url = new URL(request.url);
-  if (url.searchParams.get("ai") !== "1") return Response.json(base);
+  const aiParam = url.searchParams.get("ai");
+  if (aiParam !== "1" && aiParam !== "2") return Response.json(base);
+  const useSearch = aiParam === "2";
   if (!aiEnabled()) return Response.json({ ...base, aiTest: { ok: false, error: "no provider" } });
   try {
     const started = Date.now();
-    const r = await callAi('JSON one-liner only: {"ping":"pong"}', { webSearch: false, timeoutMs: 45_000 });
+    const r = await callAi(
+      useSearch
+        ? 'Search the web for the current year and reply with JSON only: {"year":"<YYYY>"}'
+        : 'JSON one-liner only: {"ping":"pong"}',
+      { webSearch: useSearch, timeoutMs: 45_000 },
+    );
     return Response.json({
       ...base,
       aiTest: { ok: true, model: r.model, ms: Date.now() - started, sample: r.output.slice(0, 80) },

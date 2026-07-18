@@ -58,6 +58,8 @@ export async function callOpenAiApi(
       model,
       input: prompt,
       tools: options.webSearch === false ? [] : [{ type: "web_search" }],
+      // gpt-5.6 기본 추론 강도가 높아 90초 타임아웃을 유발 → low로 고정(환경변수로 조정 가능)
+      reasoning: { effort: process.env.OPENAI_REASONING_EFFORT || "low" },
       max_output_tokens: 5000,
       store: false,
     }),
