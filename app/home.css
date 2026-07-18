@@ -131,7 +131,8 @@
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   border: 1px solid rgba(6, 31, 67, 0.14);
   border-radius: 12px;
@@ -144,6 +145,19 @@
   transition: border-color 0.15s, box-shadow 0.15s;
   font-family: inherit;
 }
+
+.ai-strategy-card { border-color: #b7c8ff; background: linear-gradient(145deg, #f8faff, #fff); }
+.ai-engine-fixed { display: grid; gap: 5px; margin: 18px 0; padding: 14px 16px; border: 1px solid #c9d7ff; border-radius: 12px; background: #f4f7ff; color: #28476f; }
+.ai-engine-fixed span { color: #61718a; font-size: .92rem; }
+.ai-priority-list { display: grid; gap: 12px; padding-left: 24px; }
+.ai-priority-list li { padding-left: 5px; }
+.ai-priority-list span, .ai-priority-list em { display: block; margin-top: 4px; color: #52627b; font-style: normal; }
+.ai-message-proposal { display: grid; gap: 7px; margin-top: 18px; padding: 18px; border-radius: 14px; background: #eef3ff; }
+.ai-message-proposal > strong { font-size: 1.2rem; color: #16366d; }
+.ai-message-proposal em { color: #275bc4; font-style: normal; font-weight: 700; }
+.ai-competitors { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 18px; }
+.ai-competitors b { width: 100%; }
+.ai-competitors a { padding: 6px 10px; border-radius: 999px; background: #e8efff; color: #174ca4; text-decoration: none; }
 
 .field input:focus,
 .field textarea:focus {
@@ -179,6 +193,24 @@
   background: #f6f9fc;
   border: 1px dashed rgba(6, 31, 67, 0.12);
 }
+.channel-fieldset { border: 0; padding: 0; margin: 16px 0 0; }
+.channel-fieldset legend { font-size: 13px; font-weight: 700; color: #1d314f; margin-bottom: 8px; }
+.channel-fieldset label { display: inline-flex; align-items: center; gap: 6px; margin: 0 14px 8px 0; font-size: 12.5px; color: #40536f; }
+.channel-fieldset input { width: auto; }
+
+.core-diagnostics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+.core-diagnostic-card { background: #fff; border: 1px solid #dce6f1; border-radius: 14px; padding: 16px; }
+.core-diagnostic-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.core-diagnostic-head strong { color: #0f2341; font-size: 15px; }
+.core-diagnostic-head span { font-size: 28px; line-height: 1; font-weight: 900; }
+.core-diagnostic-card > p { color: #687992; font-size: 12px; line-height: 1.5; min-height: 54px; }
+.core-diagnostic-card ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.core-diagnostic-card li { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #687992; }
+.core-diagnostic-card li > span:last-child { display: flex; flex-direction: column; gap: 1px; }
+.core-diagnostic-card li b { color: #1d314f; font-size: 12px; }
+.empty-diagnostic { padding: 14px; border-radius: 9px; background: #fff8ec; color: #8a6410; font-size: 12.5px; }
+@media (max-width: 900px) { .core-diagnostics { grid-template-columns: 1fr; } .core-diagnostic-card > p { min-height: 0; } }
+
 
 .btn-row {
   display: flex;
@@ -643,18 +675,3 @@
   background: #eef3f9; color: #0d6ed8; text-decoration: none; border: 1px solid #d5e3f5;
 }
 .verify-chip:hover { background: #e0ecfb; }
-
-/* ---- live Google Maps search result ---- */
-.live-search { border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; border: 1px solid; }
-.ls-found { background: #f0f9f4; border-color: #b9e6cd; }
-.ls-missing { background: #fff8ec; border-color: #f4d99a; }
-.ls-idle { background: #f6f9fc; border-color: #e3ebf5; }
-.ls-head { font-weight: 800; font-size: 14px; margin-bottom: 4px; }
-.ls-found .ls-head { color: #0a5c32; }
-.ls-missing .ls-head { color: #8a6410; }
-.ls-idle .ls-head { color: #40536f; }
-.ls-summary { font-size: 13px; color: #1d314f; line-height: 1.5; }
-.ls-facts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
-.ls-fact { font-size: 12.5px; font-weight: 600; color: #0a5c32; background: #fff; border: 1px solid #cbe8d7; border-radius: 10px; padding: 3px 10px; }
-.ls-map { font-size: 12.5px; font-weight: 700; color: #0d6ed8; text-decoration: none; }
-.ls-map:hover { text-decoration: underline; }

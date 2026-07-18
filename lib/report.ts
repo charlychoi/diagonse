@@ -9,6 +9,10 @@ function impactLabel(v: string): string {
   return "낮음";
 }
 
+function diagnosticLabel(status: string): string {
+  return status === "pass" ? "양호" : status === "warn" ? "주의" : status === "fail" ? "취약" : "확인 필요";
+}
+
 /** Build Full Diagnosis Report in Markdown (PRD report template) */
 export function buildMarkdownReport(
   result: Omit<DiagnosisResult, "markdownReport"> & { markdownReport?: string },
@@ -18,7 +22,7 @@ export function buildMarkdownReport(
     timeZone: "Asia/Seoul",
   });
 
-  lines.push(`# MarkDiag 마케팅 진단 보고서`);
+  lines.push(`# AI 온라인 마케팅 사전진단 보고서`);
   lines.push(``);
   lines.push(`## 1. Cover`);
   lines.push(``);
@@ -119,12 +123,98 @@ export function buildMarkdownReport(
   }
   lines.push(``);
 
+  lines.push(`## 5.1 첫 화면 메시지 진단 — ${result.hero.score}/100`);
+  lines.push(``);
+  lines.push(`> ${result.hero.summary}`);
+  lines.push(``);
+  lines.push(`- 헤드라인: ${result.hero.headline || "미검출"}`);
+  lines.push(`- 보조 설명: ${result.hero.subcopy || "미검출"}`);
+  lines.push(`- CTA: ${result.hero.ctas.join(", ") || "미검출"}`);
+  lines.push(`- 신뢰 요소: ${result.hero.trustSignals.join(" · ") || "미검출"}`);
+  lines.push(``);
+  for (const check of result.hero.checks) lines.push(`- **${diagnosticLabel(check.status)} · ${check.title}** — ${check.detail}  \n  조치: ${check.action}`);
+  lines.push(``);
+
+  lines.push(`## 5.2 전환 동선 진단 — ${result.conversion.score}/100`);
+  lines.push(``);
+  lines.push(`> ${result.conversion.summary}`);
+  lines.push(``);
+  lines.push(`- 전환 경로: 전화 ${result.conversion.paths.tel} · 이메일 ${result.conversion.paths.email} · 카카오 ${result.conversion.paths.kakao} · 네이버 ${result.conversion.paths.naver} · 예약 ${result.conversion.paths.booking} · 폼 ${result.conversion.paths.forms}`);
+  for (const check of result.conversion.checks) lines.push(`- **${diagnosticLabel(check.status)} · ${check.title}** — ${check.detail}  \n  조치: ${check.action}`);
+  lines.push(``);
+
+  lines.push(`## 5.3 광고 집행 준비도 — ${result.adReadiness.score}/100 (${result.adReadiness.level})`);
+  lines.push(``);
+  lines.push(`> ${result.adReadiness.summary}`);
+  lines.push(``);
+  lines.push(`| 상태 | 점검 항목 | 진단 | 우선 조치 |`);
+  lines.push(`| --- | --- | --- | --- |`);
+  for (const check of result.adReadiness.checks) lines.push(`| ${diagnosticLabel(check.status)} | ${check.title} | ${check.detail.replace(/\|/g, "/")} | ${check.action.replace(/\|/g, "/")} |`);
+  lines.push(``);
+
+  lines.push(`## 5.4 서비스·상품 페이지 진단`);
+  lines.push(``);
+  lines.push(`> ${result.servicePages.summary}`);
+  lines.push(``);
+  if (result.servicePages.pages.length) {
+    lines.push(`| 페이지 | H1 | 점수 | 주요 취약 항목 |`);
+    lines.push(`| --- | --- | ---: | --- |`);
+    for (const page of result.servicePages.pages) {
+      const weak = page.checks.filter((c) => c.status !== "pass").slice(0, 3).map((c) => c.title).join(", ") || "없음";
+      lines.push(`| [${page.title || page.url}](${page.url}) | ${page.h1 || "미검출"} | ${page.score} | ${weak} |`);
+    }
+    lines.push(``);
+  }
+  for (const action of result.servicePages.topActions) lines.push(`- ${action}`);
+  lines.push(``);
+
+  lines.push(`## 5.5 Grok 4.5 API 심층 전략`);
+  lines.push(``);
+  if (result.aiPrecheck.enabled) {
+    lines.push(`- 분석 엔진: **${result.aiPrecheck.model}** (${result.aiPrecheck.provider})`);
+    lines.push(`- 웹 검색 사용: ${result.aiPrecheck.usedWebSearch ? "예" : "아니오"}`);
+    lines.push(``);
+    lines.push(`> ${result.aiPrecheck.summary}`);
+    lines.push(``);
+    for (const item of result.aiPrecheck.priorities) {
+      lines.push(`- **${item.title}** — ${item.reason}  \n  실행: ${item.action}`);
+    }
+    if (result.aiPrecheck.messaging) {
+      lines.push(``);
+      lines.push(`**추천 첫 화면 문구**`);
+      lines.push(`- 헤드라인: ${result.aiPrecheck.messaging.headline}`);
+      lines.push(`- 보조 설명: ${result.aiPrecheck.messaging.subcopy}`);
+      lines.push(`- CTA: ${result.aiPrecheck.messaging.primaryCta}`);
+    }
+    if (result.aiPrecheck.competitorCandidates.length) {
+      lines.push(``);
+      lines.push(`**AI 웹 검색 경쟁사 후보**`);
+      for (const item of result.aiPrecheck.competitorCandidates) lines.push(`- [${item.name}](${item.url}) — ${item.reason} (확신도 ${item.confidence})`);
+    }
+  } else {
+    lines.push(`> AI 로그인 세션을 사용할 수 없어 규칙 기반 진단만 실행했습니다.${result.aiPrecheck.error ? ` 사유: ${result.aiPrecheck.error}` : ""}`);
+  }
+  lines.push(``);
+
+  lines.push(`## 5.6 경쟁사 비교`);
+  lines.push(``);
+  lines.push(`> ${result.competitorComparison.summary}`);
+  lines.push(``);
+  if (result.competitorComparison.enabled && result.competitorComparison.comparison.length) {
+    lines.push(`| 비교 항목 | 우리 홈페이지 | 경쟁사 | 해석 |`);
+    lines.push(`| --- | --- | --- | --- |`);
+    for (const row of result.competitorComparison.comparison) lines.push(`| ${row.item} | ${row.ours} | ${row.competitors} | ${row.interpretation} |`);
+    lines.push(``);
+    lines.push(`> 본 비교는 공개 홈페이지 표면 신호 기준이며 실제 매출·광고 성과를 의미하지 않습니다.`);
+    lines.push(``);
+  }
+
   const ks = result.keywordStrategy;
   if (ks) {
-    lines.push(`## 5.5 키워드 전략 — 회사명이 아닌 '핵심 키워드'로 노출되기`);
+    lines.push(`## 5.7 키워드 전략 — 회사명이 아닌 '핵심 키워드'로 노출되기`);
     lines.push(``);
     lines.push(
-      `- 산출 방식: ${ks.source === "ai" ? `AI(${ks.model}) — 크롤 본문 검색의도 분석` : "휴리스틱(본문 빈출 키워드) — 서버에 ANTHROPIC_API_KEY 설정 시 AI 분석으로 자동 업그레이드"}`,
+      `- 산출 방식: ${ks.source === "ai" ? `AI(${ks.model}) — 크롤 본문 검색의도 분석` : "휴리스틱(본문 빈출 키워드)"}`,
     );
     lines.push(`- 메인 비즈니스(추정): ${ks.mainBusiness}`);
     lines.push(
@@ -274,7 +364,7 @@ export function buildMarkdownReport(
   lines.push(`- PDF/PPT 내보내기 및 광고 플랫폼 연동은 Phase 2에서 제공됩니다.`);
   lines.push(``);
   lines.push(`---`);
-  lines.push(`*Generated by MarkDiag · AI Online Marketing Diagnosis*`);
+  lines.push(`*Generated by Diagonse · AI Online Marketing Precheck*`);
 
   return lines.join("\n");
 }

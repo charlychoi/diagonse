@@ -73,6 +73,98 @@ export type MarketingChannel =
   | "email"
   | "other";
 
+export type DiagnosticStatus = "pass" | "warn" | "fail" | "manual";
+export type DiagnosticCheck = {
+  id: string;
+  title: string;
+  status: DiagnosticStatus;
+  detail: string;
+  action: string;
+};
+
+export type HeroDiagnosisReport = {
+  score: number;
+  headline: string | null;
+  subcopy: string | null;
+  ctas: string[];
+  trustSignals: string[];
+  checks: DiagnosticCheck[];
+  summary: string;
+  topActions: string[];
+};
+
+export type ConversionDiagnosisReport = {
+  score: number;
+  checks: DiagnosticCheck[];
+  paths: {
+    ctaTexts: string[];
+    tel: number;
+    email: number;
+    kakao: number;
+    naver: number;
+    booking: number;
+    contactPages: number;
+    forms: number;
+  };
+  summary: string;
+  topActions: string[];
+};
+
+export type AdReadinessReport = {
+  score: number;
+  level: "양호" | "주의" | "취약";
+  summary: string;
+  checks: DiagnosticCheck[];
+  topActions: string[];
+};
+
+export type ServicePageDiagnosis = {
+  pages: {
+    url: string;
+    title: string | null;
+    h1: string | null;
+    score: number;
+    checks: DiagnosticCheck[];
+  }[];
+  summary: string;
+  topActions: string[];
+};
+
+export type CompetitorComparisonReport = {
+  enabled: boolean;
+  source: "user" | "ai" | "none";
+  competitors: {
+    url: string;
+    title: string | null;
+    h1: string | null;
+    hasDescription: boolean;
+    hasCta: boolean;
+    hasForm: boolean;
+    hasBlog: boolean;
+    hasJsonLd: boolean;
+    hasContact: boolean;
+    wordCount: number;
+    strengths: string[];
+    error?: string;
+  }[];
+  comparison: { item: string; ours: string; competitors: string; interpretation: string }[];
+  summary: string;
+  topActions: string[];
+};
+
+export type AiPrecheckReport = {
+  enabled: boolean;
+  provider: "openai" | "xai" | "none";
+  model: string | null;
+  usedWebSearch: boolean;
+  summary: string;
+  priorities: { title: string; reason: string; action: string; impact: "high" | "medium" | "low" }[];
+  messaging: { headline: string; subcopy: string; primaryCta: string } | null;
+  competitorCandidates: { name: string; url: string; reason: string; confidence: "high" | "medium" | "low" }[];
+  citations: string[];
+  error?: string;
+};
+
 export type DiagnosisInput = {
   url: string;
   /** Company / brand name (for AI auto-diagnose — preferred over hostname guess) */
@@ -81,6 +173,7 @@ export type DiagnosisInput = {
   industry?: string;
   targetCountry?: string;
   channels?: MarketingChannel[];
+  competitors?: string[];
 };
 
 export type AxisScore = {
@@ -136,6 +229,12 @@ export type DiagnosisResult = {
   naverSeo: NaverSeoReport;
   /** Google Business Profile / local SEO strategy */
   localSeo: LocalSeoReport;
+  hero: HeroDiagnosisReport;
+  conversion: ConversionDiagnosisReport;
+  adReadiness: AdReadinessReport;
+  servicePages: ServicePageDiagnosis;
+  competitorComparison: CompetitorComparisonReport;
+  aiPrecheck: AiPrecheckReport;
   methodology: string;
   markdownReport: string;
 };

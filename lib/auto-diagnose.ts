@@ -17,6 +17,7 @@ export type AutoDiagnoseRequest = {
   industry?: string;
   targetCountry?: string;
   channels?: MarketingChannel[] | string[];
+  competitors?: string[] | string;
 };
 
 export type AutoDiagnoseResponse = {
@@ -28,6 +29,7 @@ export type AutoDiagnoseResponse = {
     company: string;
     keywords?: string[];
     industry?: string;
+    competitors?: string[];
   };
   scores: {
     surfaceScore: number;
@@ -71,10 +73,6 @@ export type AutoDiagnoseResponse = {
     schemaTypes: string[];
     hasOrgSchema: boolean;
     hasLocalBusinessSchema: boolean;
-    liveSearch: {
-      performed: boolean; method: string; found: boolean; reason?: string; summary: string;
-      match: { name: string; address: string; phone: string; rating: number | null; reviewCount: number | null; businessStatus: string; mapsUri: string; websiteUri: string; primaryType: string; confidence: string } | null;
-    };
     items: { status: string; category: string; title: string; detail: string; action: string }[];
     panelPlan: { step: string; why: string }[];
     organizationJsonLd: string;
@@ -91,6 +89,12 @@ export type AutoDiagnoseResponse = {
   brandSearchQueries: DiagnosisResult["seoPlaybook"]["brandSearchQueries"];
   naverTopActions: string[];
   quickWins: DiagnosisResult["quickWins"];
+  hero: DiagnosisResult["hero"];
+  conversion: DiagnosisResult["conversion"];
+  adReadiness: DiagnosisResult["adReadiness"];
+  servicePages: DiagnosisResult["servicePages"];
+  competitorComparison: DiagnosisResult["competitorComparison"];
+  aiPrecheck: DiagnosisResult["aiPrecheck"];
   /** AI/heuristic 3-tier keyword strategy (non-brand visibility design) */
   keywordStrategy: DiagnosisResult["keywordStrategy"];
   /** Full markdown report — save as .md file */
@@ -106,7 +110,7 @@ export type AutoDiagnoseError = {
   code: "VALIDATION" | "DIAGNOSIS" | "INTERNAL";
 };
 
-const VERSION = "1.0.0-auto";
+const VERSION = "3.0.0-local";
 
 function parseKeywords(
   raw: string[] | string | undefined,
@@ -140,6 +144,27 @@ function safeFilename(company: string, id: string): string {
     .slice(0, 40);
   const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   return `마케팅_사전진단_${slug || "report"}_${day}_${id.slice(0, 8)}.md`;
+}
+
+function parseCompetitors(raw: unknown): string[] {
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+      ? raw.split(/[\n,，]/)
+      : [];
+  const out: string[] = [];
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (!text) continue;
+    try {
+      const normalized = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+      if (!/^https?:$/.test(normalized.protocol)) continue;
+      out.push(normalized.toString());
+    } catch {
+      continue;
+    }
+  }
+  return [...new Set(out)].slice(0, 3);
 }
 
 export function validateAutoRequest(
@@ -176,6 +201,7 @@ export function validateAutoRequest(
       targetCountry:
         typeof b.targetCountry === "string" ? b.targetCountry.trim() : "대한민국",
       channels: b.channels as string[] | undefined,
+      competitors: parseCompetitors(b.competitors),
     },
   };
 }
@@ -192,6 +218,7 @@ export async function runAutoDiagnose(
     industry: req.industry,
     targetCountry: req.targetCountry || "대한민국",
     channels: req.channels as MarketingChannel[] | undefined,
+    competitors: parseCompetitors(req.competitors),
   };
 
   const result = await runDiagnosis(input);
@@ -200,13 +227,13 @@ export async function runAutoDiagnose(
   const reportHeader = [
     `> **Diagonse 마케팅 사전진단** · v${VERSION}`,
     `> 입력: URL \`${req.url}\` · 회사명 **${req.company}**`,
-    `> 키워드: ${(keywords || []).join(", ") || "(자동 추론 — 5.5 키워드 전략 섹션 참조)"}`,
-    `> 생성: ${new Date().toISOString()} · https://diagonse.vercel.app`,
+    `> 키워드: ${(keywords || []).join(", ") || "(자동 추론 — 5.6 키워드 전략 섹션 참조)"}`,
+    `> 생성: ${new Date().toISOString()} · Grok 4.5 API`,
     ``,
   ].join("\n");
 
   const markdown = result.markdownReport.replace(
-    /^(# MarkDiag 마케팅 진단 보고서\n)/,
+    /^(# AI 온라인 마케팅 사전진단 보고서\n)/,
     `$1\n${reportHeader}`,
   );
 
@@ -227,6 +254,7 @@ export async function runAutoDiagnose(
       company: req.company,
       keywords,
       industry: req.industry,
+      competitors: parseCompetitors(req.competitors),
     },
     scores: {
       surfaceScore: result.overallScore,
@@ -270,7 +298,6 @@ export async function runAutoDiagnose(
       schemaTypes: result.localSeo.schemaTypes,
       hasOrgSchema: result.localSeo.hasOrgSchema,
       hasLocalBusinessSchema: result.localSeo.hasLocalBusinessSchema,
-      liveSearch: result.localSeo.liveSearch,
       items: result.localSeo.items.map((i) => ({
         status: i.status, category: i.category, title: i.title, detail: i.detail, action: i.action,
       })),
@@ -289,6 +316,12 @@ export async function runAutoDiagnose(
     brandSearchQueries: result.seoPlaybook.brandSearchQueries,
     naverTopActions: result.naverSeo.topActions,
     quickWins: result.quickWins,
+    hero: result.hero,
+    conversion: result.conversion,
+    adReadiness: result.adReadiness,
+    servicePages: result.servicePages,
+    competitorComparison: result.competitorComparison,
+    aiPrecheck: result.aiPrecheck,
     keywordStrategy: result.keywordStrategy,
     markdown,
     filename: safeFilename(req.company, result.id),

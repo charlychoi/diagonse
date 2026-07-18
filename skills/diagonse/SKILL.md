@@ -42,17 +42,19 @@ HTML 태그 채우기가 아니라, 네이버에서 `{회사명}` / `{회사명}
 
 ### Step 2 — 진단 실행 (우선순위)
 
-**A. 원격 Diagonse API (기본, 권장)**
+**A. 로컬 Diagonse API (기본, 권장)**
+
+먼저 저장소에서 `npm run dev`가 실행 중이어야 한다.
 
 ```bash
-curl -sS -X POST "https://diagonse.vercel.app/api/diagnose" \
+curl -sS -X POST "http://127.0.0.1:3000/api/diagnose" \
   -H "Content-Type: application/json" \
   -d '{"url":"<URL>","company":"<COMPANY>","keywords":["<KW1>","<KW2>"]}'
 ```
 
 - 응답 JSON의 `markdown` → 파일 저장 (`filename` 필드 사용).
 - `scores`, `brandVisibility`, `beforeAfter`로 요약 보고.
-- API 실패 시 **B**로 폴백.
+- 외부 서버로 전송하지 않는다. API 실패 시 **B**로 폴백.
 
 **B. 로컬 엔진 (이 저장소 안에서)**
 
@@ -64,7 +66,7 @@ npx tsx scripts/diagnose-cli.ts "<URL>" "<COMPANY>" "<KW1,KW2>"
 
 `out/` 아래 생성된 md 경로를 사용.
 
-**C. 도구만 있는 환경 (API·로컬 모두 불가)**
+**C. 도구만 있는 환경 (로컬 앱·CLI 모두 불가)**
 
 1. 홈페이지 HTML을 fetch/browse.
 2. `references/report-outline.md` 구조로 보고서를 **직접 작성**.
@@ -111,6 +113,6 @@ npx tsx scripts/diagnose-cli.ts "<URL>" "<COMPANY>" "<KW1,KW2>"
 - `references/report-outline.md` — MD 목차
 - `references/agent-examples.md` — 호출 예시
 
-원격 백엔드 (반드시 이 주소): `https://diagonse.vercel.app/api/diagnose`  
-⚠️ `https://diagnose.vercel.app` 는 **잘못된 주소** (404 / Vercel 로그인). 철자는 **diagonse** (diagnose 아님).  
+로컬 백엔드: `http://127.0.0.1:3000/api/diagnose`
+AI 엔진: xAI Responses API `grok-4.5` + `web_search` (`XAI_API_KEY`는 `.env.local`)
 저장소: https://github.com/charlychoi/diagonse

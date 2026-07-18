@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { Metadata } from "next";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -7,27 +5,16 @@ import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import type { Components } from "react-markdown";
 import type { ReactNode } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { HashNav } from "./HashNav";
 import "./manual.css";
 
 export const metadata: Metadata = {
-  title: "검색진단소 사용자 설명서",
+  title: "AI 온라인 마케팅 사전진단 사용자 설명서",
   description:
-    "홈페이지 검색 노출 진단 웹 사용법 — URL·회사명 입력, Markdown·HTML·PDF 보고서 저장",
+    "AI 온라인 마케팅 사전진단 사용법 — URL·회사명 입력, Markdown·HTML·PDF 보고서 저장",
 };
-
-function loadManual(): string {
-  const candidates = [
-    path.join(process.cwd(), "USER_MANUAL.md"),
-    path.join(process.cwd(), "docs", "Diagonse_사용자_매뉴얼.md"),
-  ];
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      return fs.readFileSync(p, "utf8");
-    }
-  }
-  return "# 매뉴얼을 찾을 수 없습니다\n\n저장소의 `USER_MANUAL.md`를 확인해 주세요.";
-}
 
 function textOf(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
@@ -93,7 +80,7 @@ const markdownComponents: Components = {
 };
 
 export default function ManualPage() {
-  const md = loadManual();
+  const md = readFileSync(join(process.cwd(), "USER_MANUAL.md"), "utf8");
 
   return (
     <div className="manual-shell">
@@ -101,12 +88,12 @@ export default function ManualPage() {
       <header className="manual-topbar">
         <div className="manual-topbar-inner">
           <Link href="/" className="manual-brand">
-            <strong>검색진단소</strong>
+            <strong>AI 온라인 마케팅 사전진단</strong>
             <span>사용자 설명서</span>
           </Link>
           <nav className="manual-nav">
-            <a href="https://diagonse.vercel.app/api/diagnose">API</a>
-            <a href="https://diagonse.vercel.app/api/health">Health</a>
+            <a href="/api/diagnose">API</a>
+            <a href="/api/health">Health</a>
             <a
               href="https://github.com/charlychoi/diagonse"
               target="_blank"
@@ -133,8 +120,10 @@ export default function ManualPage() {
 
       <footer className="manual-footer">
         <p>
-          웹 진단:{" "}
-          <a href="https://diagonse.vercel.app">https://diagonse.vercel.app</a>
+          온라인 진단:{" "}
+          <a href="https://diagnose.charlychoi.chatgpt.site">
+            diagnose.charlychoi.chatgpt.site
+          </a>
           {" · "}
           소스:{" "}
           <a href="https://github.com/charlychoi/diagonse">
@@ -142,9 +131,7 @@ export default function ManualPage() {
           </a>
         </p>
         <p className="manual-footer-note">
-          ⚠️ 올바른 주소는 <strong>diagonse</strong>.vercel.app 입니다 (diagnose
-          아님). 일반 사용자는 스킬 등록 없이 웹에서 바로 진단·다운로드하면
-          됩니다.
+          GitHub 복제 사용자는 자신의 xAI API 키를 로컬 환경 변수로 설정합니다.
         </p>
       </footer>
     </div>

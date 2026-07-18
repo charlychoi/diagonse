@@ -4,13 +4,14 @@
  * the company's MAIN BUSINESS KEYWORDS (not the brand name).
  *
  * Two modes:
- *  - AI mode (ANTHROPIC_API_KEY set): crawled content → Claude → 3-tier keyword
+ *  - AI mode (Grok 4.5 API): crawled content → Grok → 3-tier keyword
  *    strategy + rewritten title/meta/H1 + FAQ set + blog title plan
- *  - Heuristic fallback (no key / API failure): content keyword mining from the
+ *  - Heuristic fallback (API disabled / failure): content keyword mining from the
  *    crawled body text — never falls back to the company name as a "keyword"
  */
 
 import type { ParsedSiteSignals } from "./crawl";
+import { callXaiApi } from "./xai-api-client";
 import type { DiagnosisInput } from "./types";
 
 export type KeywordTierItem = {
@@ -299,15 +300,15 @@ export function buildHeuristicStrategy(
     ],
     notes: [
       thin
-        ? "⚠ 이 홈페이지는 자바스크립트로 렌더링되어 크롤 가능한 본문이 거의 없습니다. 아래 키워드는 제목·슬로건에서 추정한 것이라 실제 서비스와 다를 수 있습니다. 정확한 진단을 위해 (1) 진단 시 핵심 키워드를 직접 입력하시거나, (2) 서버에 ANTHROPIC_API_KEY를 설정해 AI 모드를 켜주세요."
-        : "휴리스틱 모드 결과입니다 — 본문 빈출 키워드 기반이며, ANTHROPIC_API_KEY 설정 시 AI가 검색 의도·경쟁 관점까지 반영해 재설계합니다.",
+        ? "⚠ 이 홈페이지는 자바스크립트로 렌더링되어 크롤 가능한 본문이 거의 없습니다. 아래 키워드는 제목·슬로건에서 추정한 것이라 실제 서비스와 다를 수 있습니다. 핵심 키워드를 직접 입력해 주세요."
+        : "세부 키워드는 본문 빈출 키워드 기반 휴리스틱으로 생성했습니다.",
       "키워드별 월간 검색량·경쟁도는 네이버 검색광고 키워드 도구에서 실측 후 확정하세요.",
     ],
   };
 }
 
 /* ------------------------------------------------------------------ */
-/* AI strategy (Claude)                                                 */
+/* AI strategy (Grok 4.5 API)                                           */
 /* ------------------------------------------------------------------ */
 
 function buildPrompt(
@@ -353,35 +354,12 @@ function buildPrompt(
 }`;
 }
 
-type AnthropicResponse = {
-  content?: Array<{ type: string; text?: string }>;
-};
-
-async function callClaude(prompt: string): Promise<KeywordStrategy | null> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+async function callGrokApi(prompt: string): Promise<KeywordStrategy | null> {
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2500,
-        messages: [{ role: "user", content: prompt }],
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as AnthropicResponse;
-    const text = data.content?.find((c) => c.type === "text")?.text ?? "";
-    const parsed = parseStrategyJson(text);
+    const result = await callXaiApi(prompt, { webSearch: false });
+    const parsed = parseStrategyJson(result.output);
     if (!parsed) return null;
-    return { ...parsed, source: "ai", model };
+    return { ...parsed, source: "ai", model: result.model };
   } catch {
     return null;
   }
@@ -441,7 +419,9 @@ export async function buildKeywordStrategy(
   const mined = extractContentKeywords(signals, bodyText, brand);
   const regions = extractRegions(bodyText);
 
-  const ai = await callClaude(buildPrompt(signals, input, bodyText, mined, regions));
+  const ai = process.env.XAI_KEYWORD_STRATEGY === "true"
+    ? await callGrokApi(buildPrompt(signals, input, bodyText, mined, regions))
+    : null;
   if (ai) {
     ai.regions = regions;
     if (!ai.notes.length) ai.notes = [];

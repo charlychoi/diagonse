@@ -17,7 +17,7 @@ URL이랑 회사명만 줄 테니 브랜드 검색 신호 평가해줘. https://
 ## API 호출 (스킬 Step 2-A)
 
 ```bash
-curl -sS -X POST "https://diagonse.vercel.app/api/diagnose" \
+curl -sS -X POST "http://127.0.0.1:3000/api/diagnose" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://sangsangwoori.com/","company":"상상우리","keywords":["AI 컨설팅","중장년"]}' \
   -o /tmp/diag.json

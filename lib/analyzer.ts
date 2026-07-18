@@ -3,10 +3,15 @@ import { crawlAndParse } from "./crawl";
 import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
 import { evaluateLocalSeo } from "./local-seo";
-import { checkGooglePlace } from "./places";
 import { buildSearchMeasureBundle } from "./search-measure";
 import { buildSeoPlaybook } from "./seo-playbook";
 import { buildKeywordStrategy } from "./ai-strategy";
+import { evaluateHero } from "./hero-diagnosis";
+import { evaluateConversion } from "./conversion-diagnosis";
+import { evaluateAdReadiness } from "./ad-readiness";
+import { evaluateServicePages } from "./service-page";
+import { evaluateCompetitors } from "./competitor-comparison";
+import { evaluateAiPrecheck } from "./ai-precheck";
 import {
   finalizeSurfaceScore,
   gradeFromScore,
@@ -252,18 +257,26 @@ function scoreUxConversion(signals: ParsedSiteSignals): AxisScore {
     strengths.push("푸터 영역이 존재합니다.");
   }
 
-  if (signals.hasCtaHints) {
-    score += 12;
-    strengths.push("CTA/전환 유도 문구 신호가 감지되었습니다.");
+  const conversion = signals.conversion;
+  const actualPaths = conversion
+    ? conversion.telLinks.length + conversion.mailtoLinks.length + conversion.kakaoLinks.length + conversion.naverTalkLinks.length + conversion.bookingLinks.length + conversion.contactPageUrls.length
+    : 0;
+  if (signals.hasCtaHints && actualPaths > 0) {
+    score += 14;
+    strengths.push(`CTA와 실제 전환 링크 ${actualPaths}개가 연결되어 있습니다.`);
+  } else if (signals.hasCtaHints) {
+    score += 3;
+    weaknesses.push("CTA 문구는 있으나 실제 문의·예약·전화 연결이 약합니다.");
+    recommendations.push("CTA를 실제 문의 페이지, tel:, 예약 또는 상담 링크에 연결하세요.");
   } else {
     score -= 8;
     weaknesses.push("명확한 CTA(문의, 신청, 시작 등)가 약합니다.");
     recommendations.push("히어로 영역에 단일 주요 CTA를 배치하세요.");
   }
 
-  if (signals.hasForm) {
+  if (signals.hasForm || (conversion?.bookingLinks.length || 0) > 0 || (conversion?.kakaoLinks.length || 0) > 0 || (conversion?.naverTalkLinks.length || 0) > 0) {
     score += 10;
-    strengths.push("폼(전환 수집) 요소가 있습니다.");
+    strengths.push("폼 또는 외부 예약·상담 경로가 있습니다.");
   } else {
     score -= 4;
     findings.push("폼이 감지되지 않았습니다. 외부 링크 CTA일 수 있습니다.");
@@ -277,6 +290,17 @@ function scoreUxConversion(signals: ParsedSiteSignals): AxisScore {
     score -= 4;
     weaknesses.push("연락 경로가 불명확합니다.");
     recommendations.push("문의 페이지 또는 플로팅 상담 CTA를 추가하세요.");
+  }
+
+  if (signals.phones.length && !(conversion?.telLinks.length || 0)) {
+    weaknesses.push("전화번호는 보이나 모바일 클릭 전화(tel:) 링크가 없습니다.");
+    recommendations.push("모바일 방문자가 바로 통화하도록 전화번호에 tel: 링크를 적용하세요.");
+    score -= 4;
+  }
+
+  if ((conversion?.kakaoLinks.length || 0) + (conversion?.naverTalkLinks.length || 0) > 0) {
+    strengths.push("카카오톡 또는 네이버 상담 연결이 있어 모바일 전환 장벽이 낮습니다.");
+    score += 5;
   }
 
   if (signals.hasPrivacy) {
@@ -642,7 +666,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
   const signals = await crawlAndParse(input.url);
 
   // Keyword strategy first — the product goal is non-brand keyword visibility.
-  // AI mode (ANTHROPIC_API_KEY) analyzes crawled content; otherwise heuristic
+  // Optional Grok API keyword analysis; otherwise heuristic
   // content mining. Derived keywords feed every downstream module when the
   // user did not supply keywords (previously this silently degraded to
   // brand-only evaluation).
@@ -716,13 +740,26 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     extraKeywords: keywordStrategy.tier2.slice(0, 3).map((t) => t.keyword),
   });
   const naverSeo = evaluateNaverSeo(signals, effInput);
-  const placesResult = await checkGooglePlace({
-    brand: (effInput.company || "").trim() || signals.hostname.split(".")[0],
-    region: (signals.addressHints?.[0] || effInput.industry || "").slice(0, 20),
-    hostname: signals.hostname,
-    service: effInput.keywords?.[0] || effInput.industry,
+  const hero = evaluateHero(signals, effInput);
+  const conversion = evaluateConversion(signals);
+  const adReadiness = evaluateAdReadiness(signals, hero, conversion);
+  const servicePages = evaluateServicePages(signals);
+  const aiPrecheck = await evaluateAiPrecheck(signals, effInput, {
+    hero,
+    conversion,
+    adReadiness,
+    servicePages,
   });
-  const localSeo = evaluateLocalSeo(signals, effInput, placesResult);
+  const hasManualCompetitors = Boolean(effInput.competitors?.length);
+  const aiCompetitors = aiPrecheck.competitorCandidates.map((candidate) => candidate.url).slice(0, 3);
+  const competitorInput = hasManualCompetitors || !aiCompetitors.length
+    ? effInput
+    : { ...effInput, competitors: aiCompetitors };
+  const competitorSource = hasManualCompetitors ? "user" : aiCompetitors.length ? "ai" : "none";
+  const [localSeo, competitorComparison] = await Promise.all([
+    evaluateLocalSeo(signals, effInput),
+    evaluateCompetitors(signals, competitorInput, competitorSource),
+  ]);
 
   const partial: Omit<DiagnosisResult, "markdownReport"> = {
     id,
@@ -747,6 +784,12 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     searchMeasure,
     naverSeo,
     localSeo,
+    hero,
+    conversion,
+    adReadiness,
+    servicePages,
+    competitorComparison,
+    aiPrecheck,
     keywordStrategy,
     methodology,
   };
