@@ -5,7 +5,7 @@
  */
 
 export type AiApiResult = {
-  provider: "anthropic" | "xai" | "openai" | "gemini";
+  provider: "anthropic" | "xai" | "openai" | "gemini" | "glm";
   model: string;
   output: string;
   citations: string[];
