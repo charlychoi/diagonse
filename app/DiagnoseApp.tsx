@@ -265,7 +265,6 @@ export function DiagnoseApp() {
   return (
     <>
       <div className="home-hero">
-        <h1>광고 전, 우리 회사 온라인 상태부터 진단하세요</h1>
         <p>
           홈페이지 주소와 회사명만 입력하면 AI가 <strong>검색·홈페이지·콘텐츠·전환 동선</strong>을
           분석해 컨설팅 전 개선 우선순위를 찾아드립니다. 광고를 시작하기 전에

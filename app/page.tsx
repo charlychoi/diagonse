@@ -9,7 +9,6 @@ export default function Home() {
         <div className="home-topbar-inner">
           <Link href="/" className="home-brand">
             <strong>AI 온라인 마케팅 사전진단</strong>
-            <span>광고 전 온라인 상태 진단</span>
           </Link>
           <nav className="home-nav">
             <Link href="/manual">사용자 설명서</Link>
