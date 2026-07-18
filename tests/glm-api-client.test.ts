@@ -16,6 +16,8 @@ describe("callGlmApi", () => {
       assert.match(String(input), /api\.z\.ai\/api\/paas\/v4\/chat\/completions$/);
       assert.equal(body.model, "glm-5.2");
       assert.equal(body.messages[0].content, "diagnose");
+      assert.equal(body.thinking.type, "disabled");
+      assert.equal(body.tools[0].web_search.search_engine, "search_pro_jina");
       assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-key");
       return new Response(JSON.stringify({
         choices: [{

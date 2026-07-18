@@ -61,7 +61,16 @@ export async function callGlmApi(
       model,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 5000,
-      ...(options.webSearch === false ? {} : { tools: [{ type: "web_search", web_search: { enable: true } }] }),
+      // 진단 응답은 구조화된 JSON — 딥 추론(thinking)은 지연(90s+ 타임아웃)만 유발하므로 비활성화
+      thinking: { type: "disabled" },
+      ...(options.webSearch === false
+        ? {}
+        : {
+            tools: [{
+              type: "web_search",
+              web_search: { enable: true, search_engine: "search_pro_jina", search_result: true, count: 10 },
+            }],
+          }),
     }),
     signal: AbortSignal.timeout(options.timeoutMs || 90_000),
   });
