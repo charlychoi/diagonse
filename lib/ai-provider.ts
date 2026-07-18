@@ -19,21 +19,19 @@ import { callAnthropicApi, type AiApiResult } from "./anthropic-api-client";
 import { callXaiApi } from "./xai-api-client";
 import { callOpenAiApi } from "./openai-api-client";
 import { callGeminiApi } from "./gemini-api-client";
-import { callGlmApi } from "./glm-api-client";
 
 export type AiMode = "internal" | "public" | "none";
 
 export type AiConfig = {
   mode: AiMode;
-  provider: "xai" | "openai" | "gemini" | "glm" | "anthropic" | "none";
+  provider: "xai" | "openai" | "gemini" | "anthropic" | "none";
   label: string;
 };
 
 const INTERNAL_PROVIDERS = [
   { provider: "xai" as const, name: "Grok", keyEnv: "XAI_API_KEY", modelEnv: "XAI_MODEL", defaultModel: "grok-4.5" },
-  { provider: "openai" as const, name: "GPT", keyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", defaultModel: "gpt-5" },
+  { provider: "openai" as const, name: "GPT", keyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", defaultModel: "gpt-5.6" },
   { provider: "gemini" as const, name: "Gemini", keyEnv: "GEMINI_API_KEY", modelEnv: "GEMINI_MODEL", defaultModel: "gemini-2.5-pro" },
-  { provider: "glm" as const, name: "GLM", keyEnv: "GLM_API_KEY", modelEnv: "GLM_MODEL", defaultModel: "glm-5.2" },
 ];
 
 export function resolveAiConfig(env: Record<string, string | undefined> = process.env): AiConfig {
@@ -52,8 +50,8 @@ export function resolveAiConfig(env: Record<string, string | undefined> = proces
   if (env.ANTHROPIC_API_KEY) {
     return { mode: "public", provider: "anthropic", label: `Claude (${env.ANTHROPIC_MODEL || "claude-sonnet-4-5"}) · 공개` };
   }
-  if (env.GLM_API_KEY) {
-    return { mode: "public", provider: "glm", label: `GLM (${env.GLM_MODEL || "glm-5.2"}) · 공개` };
+  if (env.OPENAI_API_KEY) {
+    return { mode: "public", provider: "openai", label: `GPT (${env.OPENAI_MODEL || "gpt-5.6"}) · 공개` };
   }
   return { mode: "none", provider: "none", label: "규칙 기반(폴백)" };
 }
@@ -83,12 +81,8 @@ export async function callAi(
     const r = await callGeminiApi(prompt, { webSearch: options.webSearch, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
     return { provider: "gemini", model: r.model, output: r.output, citations: r.citations };
   }
-  if (config.provider === "glm") {
-    const r = await callGlmApi(prompt, { webSearch: options.webSearch, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
-    return { provider: "glm", model: r.model, output: r.output, citations: r.citations };
-  }
   if (config.provider === "anthropic") {
     return callAnthropicApi(prompt, { webSearch: options.webSearch, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
   }
-  throw new Error("사용 가능한 AI 프로바이더가 없습니다. 공개 버전은 ANTHROPIC_API_KEY 또는 GLM_API_KEY, 내부 테스트는 AI_MODE=internal + XAI/OPENAI/GEMINI/GLM 키 중 하나가 필요합니다.");
+  throw new Error("사용 가능한 AI 프로바이더가 없습니다. 공개 버전은 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY, 내부 테스트는 AI_MODE=internal + XAI/OPENAI/GEMINI 키 중 하나가 필요합니다.");
 }

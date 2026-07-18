@@ -13,8 +13,8 @@ describe("callOpenAiApi", () => {
   it("extracts Responses API text and citations", async () => {
     const fetchImpl: typeof fetch = async (_input, init) => {
       const body = JSON.parse(String(init?.body));
-      assert.equal(body.model, "gpt-5");
-      assert.deepEqual(body.tools, [{ type: "web_search_preview" }]);
+      assert.equal(body.model, "gpt-5.6");
+      assert.deepEqual(body.tools, [{ type: "web_search" }]);
       assert.match(String((init?.headers as Record<string, string>).Authorization), /^Bearer /);
       return new Response(JSON.stringify({
         output: [{
@@ -30,7 +30,7 @@ describe("callOpenAiApi", () => {
 
     const result = await callOpenAiApi("diagnose", { apiKey: "test-key", fetchImpl });
     assert.equal(result.provider, "openai");
-    assert.equal(result.model, "gpt-5");
+    assert.equal(result.model, "gpt-5.6");
     assert.match(result.output, /"summary":"ok"/);
     assert.deepEqual(result.citations, ["https://example.com/source"]);
   });

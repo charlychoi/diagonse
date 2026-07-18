@@ -156,7 +156,7 @@ export type CompetitorComparisonReport = {
 
 export type AiPrecheckReport = {
   enabled: boolean;
-  provider: "anthropic" | "openai" | "xai" | "gemini" | "glm" | "none";
+  provider: "anthropic" | "openai" | "xai" | "gemini" | "none";
   model: string | null;
   usedWebSearch: boolean;
   summary: string;

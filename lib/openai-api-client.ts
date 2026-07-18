@@ -47,7 +47,7 @@ export async function callOpenAiApi(
 ): Promise<OpenAiApiResult> {
   const apiKey = options.apiKey || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY가 설정되지 않았습니다. 프로젝트의 .env.local에 키를 설정해 주세요.");
-  const model = options.model || process.env.OPENAI_MODEL || "gpt-5";
+  const model = options.model || process.env.OPENAI_MODEL || "gpt-5.6";
   const response = await (options.fetchImpl || fetch)("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -57,7 +57,7 @@ export async function callOpenAiApi(
     body: JSON.stringify({
       model,
       input: prompt,
-      tools: options.webSearch === false ? [] : [{ type: "web_search_preview" }],
+      tools: options.webSearch === false ? [] : [{ type: "web_search" }],
       max_output_tokens: 5000,
       store: false,
     }),
