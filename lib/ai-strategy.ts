@@ -11,7 +11,7 @@
  */
 
 import type { ParsedSiteSignals } from "./crawl";
-import { callXaiApi } from "./xai-api-client";
+import { callAi, aiEnabled } from "./ai-provider";
 import type { DiagnosisInput } from "./types";
 
 export type KeywordTierItem = {
@@ -356,7 +356,7 @@ function buildPrompt(
 
 async function callGrokApi(prompt: string): Promise<KeywordStrategy | null> {
   try {
-    const result = await callXaiApi(prompt, { webSearch: false });
+    const result = await callAi(prompt, { webSearch: false });
     const parsed = parseStrategyJson(result.output);
     if (!parsed) return null;
     return { ...parsed, source: "ai", model: result.model };
@@ -419,7 +419,7 @@ export async function buildKeywordStrategy(
   const mined = extractContentKeywords(signals, bodyText, brand);
   const regions = extractRegions(bodyText);
 
-  const ai = process.env.XAI_KEYWORD_STRATEGY === "true"
+  const ai = process.env.AI_KEYWORD_STRATEGY === "true" && aiEnabled()
     ? await callGrokApi(buildPrompt(signals, input, bodyText, mined, regions))
     : null;
   if (ai) {

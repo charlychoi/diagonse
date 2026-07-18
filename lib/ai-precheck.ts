@@ -7,7 +7,7 @@ import type {
   HeroDiagnosisReport,
   ServicePageDiagnosis,
 } from "./types";
-import { callXaiApi } from "./xai-api-client";
+import { callAi, resolveAiConfig } from "./ai-provider";
 
 type Context = {
   hero: HeroDiagnosisReport;
@@ -19,10 +19,11 @@ type Context = {
 type AiPayload = Omit<AiPrecheckReport, "enabled" | "provider" | "model" | "usedWebSearch" | "citations" | "error">;
 
 const EMPTY: AiPayload = {
-  summary: "로컬 AI 로그인 세션을 사용할 수 없어 규칙 기반 진단만 실행했습니다.",
+  summary: "AI 프로바이더 키가 없어 규칙 기반 진단만 실행했습니다.",
   priorities: [],
   messaging: null,
   competitorCandidates: [],
+  googlePresence: null,
 };
 
 function parseJson(text: string): Record<string, unknown> {
@@ -76,11 +77,22 @@ function normalize(raw: Record<string, unknown>): AiPayload {
     ? { headline: msg.headline.trim(), subcopy: msg.subcopy.trim(), primaryCta: msg.primaryCta.trim() }
     : null;
 
+  const gp = raw.googlePresence && typeof raw.googlePresence === "object" ? raw.googlePresence as Record<string, unknown> : null;
+  const gpStatus = typeof gp?.status === "string" && ["present", "absent", "unclear"].includes(gp.status) ? gp.status as "present" | "absent" | "unclear" : null;
+  const googlePresence = gpStatus
+    ? {
+        status: gpStatus,
+        detail: typeof gp?.detail === "string" ? gp.detail.trim() : "",
+        guidance: typeof gp?.guidance === "string" ? gp.guidance.trim() : "",
+      }
+    : null;
+
   return {
     summary: typeof raw.summary === "string" && raw.summary.trim() ? raw.summary.trim() : "AI 심층 진단을 완료했습니다.",
     priorities,
     messaging,
     competitorCandidates,
+    googlePresence,
   };
 }
 
@@ -117,9 +129,9 @@ function buildPrompt(signals: ParsedSiteSignals, input: DiagnosisInput, context:
 function buildConcisePrompt(signals: ParsedSiteSignals, input: DiagnosisInput, context: Context): string {
   return `한국 온라인 마케팅 사전진단을 수행하세요. 웹 검색으로 실제 경쟁사 공식 홈페이지를 확인해야 합니다.
 회사=${input.company || signals.hostname}; 홈페이지=${signals.url}; 업종=${input.industry || "미입력"}; 키워드=${(input.keywords || []).join(", ") || "미입력"}; title=${signals.title || "없음"}; H1=${signals.h1s.join(" | ") || "없음"}; 첫화면=${context.hero.score}; 전환=${context.conversion.score}; 광고준비=${context.adReadiness.score}.
-같은 서비스·고객·지역의 경쟁사 공식 HTTPS 홈페이지를 최대 3개 검색하세요. 대상 회사, 뉴스, 디렉터리, SNS는 제외하세요. 확인되지 않은 성과는 단정하지 마세요.
+같은 서비스·고객·지역의 경쟁사 공식 HTTPS 홈페이지를 최대 3개 검색하세요. 또한 구글에서 회사명을 실제로 검색해 우측 지식/지도 패널(구글 비즈니스 프로필)이 노출되는지 확인하세요. 대상 회사, 뉴스, 디렉터리, SNS는 제외하세요. 확인되지 않은 성과는 단정하지 마세요.
 다른 설명 없이 아래 구조의 JSON만 출력하세요:
-{"summary":"종합 판단","priorities":[{"title":"","reason":"","action":"","impact":"high|medium|low"}],"messaging":{"headline":"","subcopy":"","primaryCta":""},"competitorCandidates":[{"name":"","url":"https://...","reason":"","confidence":"high|medium|low"}]}`;
+{"summary":"종합 판단","priorities":[{"title":"","reason":"","action":"","impact":"high|medium|low"}],"messaging":{"headline":"","subcopy":"","primaryCta":""},"competitorCandidates":[{"name":"","url":"https://...","reason":"","confidence":"high|medium|low"}],"googlePresence":{"status":"present|absent|unclear","detail":"구글 검색에서 확인한 지도/지식 패널 상태","guidance":"상태에 맞는 구체적 다음 조치"}}`;
 }
 
 function buildCompetitorPrompt(signals: ParsedSiteSignals, input: DiagnosisInput): string {
@@ -136,11 +148,15 @@ export async function evaluateAiPrecheck(
   context: Context,
   options: { fetchImpl?: typeof fetch; apiKey?: string } = {},
 ): Promise<AiPrecheckReport> {
+  const config = resolveAiConfig();
+  if (config.provider === "none") {
+    return { enabled: false, provider: "none", model: null, usedWebSearch: false, citations: [], ...EMPTY };
+  }
   try {
-    const raw = await callXaiApi(buildConcisePrompt(signals, input, context), options);
+    const raw = await callAi(buildConcisePrompt(signals, input, context), { ...options, config });
     const parsed = normalize(parseJson(raw.output));
     if (!parsed.competitorCandidates.length) {
-      const competitorRaw = await callXaiApi(buildCompetitorPrompt(signals, input), options);
+      const competitorRaw = await callAi(buildCompetitorPrompt(signals, input), { ...options, config });
       parsed.competitorCandidates = normalize(parseJson(competitorRaw.output)).competitorCandidates;
       raw.citations.push(...competitorRaw.citations);
     }

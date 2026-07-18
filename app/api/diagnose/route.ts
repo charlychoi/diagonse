@@ -191,7 +191,7 @@ function apiHelp() {
       "Prefer the web UI at / for end users (MD / HTML / PDF download).",
       "Set DIAGNOSE_API_KEY env to require Bearer token.",
       "Local clones use npm run dev and open the web UI on 127.0.0.1.",
-      "Set your own XAI_API_KEY in .env.local; hosted deployments use a secret environment variable.",
+      "공개 배포는 ANTHROPIC_API_KEY(Claude)로 AI 진단을 수행합니다. 내부 테스트만 AI_MODE=internal + XAI_API_KEY(Grok 4.5)를 사용합니다.",
       "Response includes aiPrecheck, hero, conversion, adReadiness, servicePages, and competitorComparison.",
       "Scores: surfaceScore (HTML), brandServiceBinding (brand search signal), naverGuideScore (technical).",
     ],

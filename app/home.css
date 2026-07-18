@@ -704,3 +704,14 @@
   .result-tabs { overflow-x: auto; flex-wrap: nowrap; }
   .rtab { white-space: nowrap; }
 }
+
+/* ---- AI Google-presence banner (local SEO card) ---- */
+.live-search { border-radius: 10px; padding: 12px 16px; margin: 4px 0 14px; border: 1px solid; }
+.ls-found { background: #f0f9f4; border-color: #b9e6cd; }
+.ls-missing { background: #fff8ec; border-color: #f4d99a; }
+.ls-idle { background: #f6f9fc; border-color: #e3ebf5; }
+.ls-head { font-weight: 800; font-size: 14px; margin-bottom: 4px; }
+.ls-found .ls-head { color: #0a5c32; }
+.ls-missing .ls-head { color: #8a6410; }
+.ls-idle .ls-head { color: #40536f; }
+.ls-summary { font-size: 13px; color: #1d314f; line-height: 1.5; }

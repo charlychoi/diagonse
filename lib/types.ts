@@ -154,13 +154,14 @@ export type CompetitorComparisonReport = {
 
 export type AiPrecheckReport = {
   enabled: boolean;
-  provider: "openai" | "xai" | "none";
+  provider: "anthropic" | "openai" | "xai" | "none";
   model: string | null;
   usedWebSearch: boolean;
   summary: string;
   priorities: { title: string; reason: string; action: string; impact: "high" | "medium" | "low" }[];
   messaging: { headline: string; subcopy: string; primaryCta: string } | null;
   competitorCandidates: { name: string; url: string; reason: string; confidence: "high" | "medium" | "low" }[];
+  googlePresence: { status: "present" | "absent" | "unclear"; detail: string; guidance: string } | null;
   citations: string[];
   error?: string;
 };

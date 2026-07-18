@@ -48,6 +48,7 @@ type LocalSeo = {
   schemaTypes: string[];
   hasOrgSchema: boolean;
   hasLocalBusinessSchema: boolean;
+  googleCheck: { performed: boolean; status: string; detail: string; guidance: string };
   items: LocalItem[];
   panelPlan: { step: string; why: string }[];
   organizationJsonLd: string;
@@ -273,8 +274,8 @@ export function DiagnoseApp() {
       </div>
 
       <div className="note-banner">
-        점수는 홈페이지 HTML 표면 신호 기준입니다. 네이버·구글의{" "}
-        <strong>실제 검색 순위 측정이 아닙니다</strong>.
+        AI가 홈페이지·검색·전환 신호를 종합 분석한 <strong>광고 전 사전진단</strong>입니다.
+        개선 우선순위와 실행안을 제시하며, 실제 광고·매출 성과는 실행 후 데이터로 함께 검증합니다.
       </div>
 
       <form className="home-card" onSubmit={onSubmit}>
@@ -735,6 +736,15 @@ export function DiagnoseApp() {
                 <div className="pp-title">홈페이지 점검 기반 우선 지침</div>
                 <ol>{result.local.panelPlan.map((p, i) => <li key={i}><strong>{p.step}</strong><span className="pp-why">{p.why}</span></li>)}</ol>
               </div>
+                {result.local.googleCheck && (
+                  <div className={"live-search " + (!result.local.googleCheck.performed ? "ls-idle" : result.local.googleCheck.status === "present" ? "ls-found" : result.local.googleCheck.status === "absent" ? "ls-missing" : "ls-idle")}>
+                    <div className="ls-head">
+                      {!result.local.googleCheck.performed ? "🔍 구글 지도·지식 패널 (AI 실검색)" : result.local.googleCheck.status === "present" ? "✅ 구글 패널 노출 확인 (AI 실검색)" : result.local.googleCheck.status === "absent" ? "⚠️ 구글 패널 미확인 (AI 실검색)" : "🔍 구글 패널 확인 (AI 실검색)"}
+                    </div>
+                    <div className="ls-summary">{result.local.googleCheck.detail}</div>
+                    {result.local.googleCheck.guidance && <div className="ls-summary" style={{ marginTop: 4, color: "#0a326f" }}>→ {result.local.googleCheck.guidance}</div>}
+                  </div>
+                )}
                 <div className="nap-row">
                   <span className="nap-chip">📞 전화 {result.local.nap.phones.length ? result.local.nap.phones.join(", ") : "미검출"}</span>
                   <span className="nap-chip">📍 주소 {result.local.nap.addresses.length ? result.local.nap.addresses.join(", ") : "미검출"}</span>

@@ -757,7 +757,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     : { ...effInput, competitors: aiCompetitors };
   const competitorSource = hasManualCompetitors ? "user" : aiCompetitors.length ? "ai" : "none";
   const [localSeo, competitorComparison] = await Promise.all([
-    evaluateLocalSeo(signals, effInput),
+    evaluateLocalSeo(signals, effInput, aiPrecheck.googlePresence),
     evaluateCompetitors(signals, competitorInput, competitorSource),
   ]);
 

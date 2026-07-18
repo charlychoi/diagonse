@@ -73,6 +73,7 @@ export type AutoDiagnoseResponse = {
     schemaTypes: string[];
     hasOrgSchema: boolean;
     hasLocalBusinessSchema: boolean;
+    googleCheck: { performed: boolean; status: string; detail: string; guidance: string };
     items: { status: string; category: string; title: string; detail: string; action: string }[];
     panelPlan: { step: string; why: string }[];
     organizationJsonLd: string;
@@ -298,6 +299,7 @@ export async function runAutoDiagnose(
       schemaTypes: result.localSeo.schemaTypes,
       hasOrgSchema: result.localSeo.hasOrgSchema,
       hasLocalBusinessSchema: result.localSeo.hasLocalBusinessSchema,
+      googleCheck: result.localSeo.googleCheck,
       items: result.localSeo.items.map((i) => ({
         status: i.status, category: i.category, title: i.title, detail: i.detail, action: i.action,
       })),

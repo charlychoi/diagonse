@@ -36,6 +36,8 @@ export type LocalSeoReport = {
   /** true if Organization/LocalBusiness schema present */
   hasOrgSchema: boolean;
   hasLocalBusinessSchema: boolean;
+  /** AI web-search Google map/knowledge-panel check (no Places API) */
+  googleCheck: { performed: boolean; status: "present" | "absent" | "unclear" | "unknown"; detail: string; guidance: string };
   items: LocalCheckItem[];
   /** ordered GBP knowledge-panel action plan */
   panelPlan: { step: string; why: string }[];
@@ -64,6 +66,7 @@ function status(cond: boolean, ok: LocalCheckStatus = "ok", no: LocalCheckStatus
 export async function evaluateLocalSeo(
   signals: ParsedSiteSignals,
   input: DiagnosisInput,
+  googlePresence?: { status: "present" | "absent" | "unclear"; detail: string; guidance: string } | null,
 ): Promise<LocalSeoReport> {
   const brand = (input.company || "").trim() || signals.hostname.split(".")[0];
   const region =
@@ -75,7 +78,42 @@ export async function evaluateLocalSeo(
   const hasLocal = schemaTypes.some((t) => /LocalBusiness|Store|ProfessionalService|MedicalBusiness/i.test(t));
   const service = input.keywords?.[0] || input.industry || "서비스";
 
+  const gp = googlePresence ?? null;
+  const googleCheck = {
+    performed: !!gp,
+    status: (gp?.status ?? "unknown") as "present" | "absent" | "unclear" | "unknown",
+    detail:
+      gp?.detail ||
+      "AI가 구글에서 회사명을 검색해 지도/지식 패널 노출 여부를 확인합니다 (AI 프로바이더 키가 설정된 경우).",
+    guidance:
+      gp?.guidance ||
+      "패널이 없으면 business.google.com에서 비즈니스 등록·소유권 인증 후 카테고리·사진·리뷰를 보강하세요.",
+  };
+  const gbpItem: LocalCheckItem = {
+    id: "gbp-panel",
+    category: "구글 비즈니스 프로필",
+    title: "구글 지도·지식 패널 노출 (AI 실검색)",
+    status:
+      googleCheck.status === "present"
+        ? "ok"
+        : googleCheck.status === "absent"
+          ? "missing"
+          : googleCheck.status === "unclear"
+            ? "warn"
+            : "manual",
+    detail:
+      googleCheck.status === "present"
+        ? `✅ AI 실검색: 구글에서 '${brand}' 검색 시 지도/지식 패널이 노출됩니다. ${googleCheck.detail}`
+        : googleCheck.status === "absent"
+          ? `⚠️ AI 실검색: 구글에서 '${brand}' 검색 시 지도/지식 패널이 확인되지 않습니다. ${googleCheck.detail}`
+          : googleCheck.status === "unclear"
+            ? `AI 실검색: 패널 여부가 불명확합니다. ${googleCheck.detail}`
+            : googleCheck.detail,
+    action: googleCheck.guidance,
+  };
+
   const items: LocalCheckItem[] = [
+    gbpItem,
     {
       id: "nap-page",
       category: "NAP 일관성",
@@ -217,6 +255,7 @@ export async function evaluateLocalSeo(
     schemaTypes,
     hasOrgSchema: hasOrg,
     hasLocalBusinessSchema: hasLocal,
+    googleCheck,
     items,
     panelPlan,
     localBusinessJsonLd,
@@ -240,6 +279,19 @@ export function formatLocalSeoMarkdown(r: LocalSeoReport): string {
   lines.push("");
   lines.push(`> 홈페이지 자동 점검: 양호 ${r.ok} · 보강 ${r.warn} · 미흡 ${r.missing} · 확인 필요 ${r.manual}.`);
   lines.push("");
+  if (r.googleCheck.performed) {
+    lines.push(`### 구글 지도·지식 패널 (AI 실검색)`);
+    lines.push("");
+    lines.push(
+      r.googleCheck.status === "present"
+        ? `✅ AI가 구글을 검색한 결과 지도/지식 패널이 노출됩니다. ${r.googleCheck.detail}`
+        : r.googleCheck.status === "absent"
+          ? `⚠️ AI가 구글을 검색한 결과 지도/지식 패널이 확인되지 않습니다. ${r.googleCheck.detail}`
+          : `AI 실검색 결과 패널 여부가 불명확합니다. ${r.googleCheck.detail}`,
+    );
+    lines.push("");
+    if (r.googleCheck.guidance) { lines.push(`- 권장 조치: ${r.googleCheck.guidance}`); lines.push(""); }
+  }
   lines.push(
     `- 감지된 NAP: 전화 ${r.nap.phones.join(", ") || "미검출"} · 주소 ${r.nap.addresses.join(", ") || "미검출"}`,
   );
