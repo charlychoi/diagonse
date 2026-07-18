@@ -5,8 +5,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import type { Components } from "react-markdown";
 import type { ReactNode } from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import manualMarkdown from "../../USER_MANUAL.md?raw";
 import { HashNav } from "./HashNav";
 import "./manual.css";
 
@@ -80,8 +79,6 @@ const markdownComponents: Components = {
 };
 
 export default function ManualPage() {
-  const md = readFileSync(join(process.cwd(), "USER_MANUAL.md"), "utf8");
-
   return (
     <div className="manual-shell">
       <HashNav />
@@ -114,7 +111,7 @@ export default function ManualPage() {
           rehypePlugins={[rehypeSlug]}
           components={markdownComponents}
         >
-          {md}
+          {manualMarkdown}
         </ReactMarkdown>
       </article>
 
@@ -131,7 +128,7 @@ export default function ManualPage() {
           </a>
         </p>
         <p className="manual-footer-note">
-          GitHub 복제 사용자는 자신의 xAI API 키를 로컬 환경 변수로 설정합니다.
+          GitHub 복제 사용자는 자신의 AI API 키를 로컬 환경 변수로 설정합니다.
         </p>
       </footer>
     </div>
