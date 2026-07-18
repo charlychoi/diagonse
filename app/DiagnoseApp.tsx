@@ -23,6 +23,24 @@ type NaverItem = { status: string; category: string; title: string; detail: stri
 type BeforeAfter = { element: string; before: string; afterA: string; brandSearchWhy?: string };
 type QuickWin = { title: string; description: string; impact: string; effort: string };
 type LocalItem = { status: string; category: string; title: string; detail: string; action: string };
+type DiagnosticCheck = { id: string; title: string; status: string; detail: string; action: string };
+type HeroReport = { score: number; headline: string | null; subcopy: string | null; ctas: string[]; trustSignals: string[]; checks: DiagnosticCheck[]; summary: string; topActions: string[] };
+type ConversionReport = { score: number; checks: DiagnosticCheck[]; paths: { ctaTexts: string[]; tel: number; email: number; kakao: number; naver: number; booking: number; contactPages: number; forms: number }; summary: string; topActions: string[] };
+type AdReadiness = { score: number; level: string; summary: string; checks: DiagnosticCheck[]; topActions: string[] };
+type ServicePages = { pages: { url: string; title: string | null; h1: string | null; score: number; checks: DiagnosticCheck[] }[]; summary: string; topActions: string[] };
+type CompetitorReport = { enabled: boolean; source: "user" | "ai" | "none"; competitors: { url: string; title: string | null; error?: string; strengths: string[] }[]; comparison: { item: string; ours: string; competitors: string; interpretation: string }[]; summary: string; topActions: string[] };
+type AiPrecheck = {
+  enabled: boolean;
+  provider: "openai" | "xai" | "none";
+  model: string | null;
+  usedWebSearch: boolean;
+  summary: string;
+  priorities: { title: string; reason: string; action: string; impact: "high" | "medium" | "low" }[];
+  messaging: { headline: string; subcopy: string; primaryCta: string } | null;
+  competitorCandidates: { name: string; url: string; reason: string; confidence: string }[];
+  citations: string[];
+  error?: string;
+};
 type LocalSeo = {
   score: number;
   ok: number; warn: number; missing: number; manual: number;
@@ -30,10 +48,6 @@ type LocalSeo = {
   schemaTypes: string[];
   hasOrgSchema: boolean;
   hasLocalBusinessSchema: boolean;
-  liveSearch: {
-    performed: boolean; method: string; found: boolean; reason?: string; summary: string;
-    match: { name: string; address: string; phone: string; rating: number | null; reviewCount: number | null; mapsUri: string; confidence: string } | null;
-  };
   items: LocalItem[];
   panelPlan: { step: string; why: string }[];
   organizationJsonLd: string;
@@ -76,7 +90,13 @@ type DiagnoseOk = {
   beforeAfter?: BeforeAfter[];
   quickWins?: QuickWin[];
   local?: LocalSeo;
-  input: { url: string; company: string; keywords?: string[]; industry?: string };
+  hero?: HeroReport;
+  conversion?: ConversionReport;
+  adReadiness?: AdReadiness;
+  servicePages?: ServicePages;
+  competitorComparison?: CompetitorReport;
+  aiPrecheck?: AiPrecheck;
+  input: { url: string; company: string; keywords?: string[]; industry?: string; competitors?: string[] };
 };
 
 function scoreColor(n: number): string {
@@ -104,6 +124,12 @@ const LOCAL_BADGE: Record<string, { cls: string; label: string }> = {
   missing: { cls: "nb-fail", label: "미흡" },
   manual: { cls: "nb-manual", label: "수동확인" },
 };
+const DIAG_BADGE: Record<string, { cls: string; label: string }> = {
+  pass: { cls: "nb-pass", label: "양호" },
+  warn: { cls: "nb-warn", label: "주의" },
+  fail: { cls: "nb-fail", label: "취약" },
+  manual: { cls: "nb-manual", label: "확인 필요" },
+};
 
 type DiagnoseErr = { ok: false; error: string };
 
@@ -113,6 +139,8 @@ export function DiagnoseApp() {
   const [keywords, setKeywords] = useState("");
   const [industry, setIndustry] = useState("");
   const [notes, setNotes] = useState("");
+  const [competitors, setCompetitors] = useState("");
+  const [channels, setChannels] = useState<string[]>([]);
   const [showOptional, setShowOptional] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -150,6 +178,9 @@ export function DiagnoseApp() {
       };
       if (keywords.trim()) body.keywords = keywords.trim();
       if (industry.trim()) body.industry = industry.trim();
+      const competitorUrls = competitors.split(/[\n,，]/).map((v) => v.trim()).filter(Boolean).slice(0, 3);
+      if (competitorUrls.length) body.competitors = competitorUrls;
+      if (channels.length) body.channels = channels;
       // notes are for human context only — append into industry field if useful
       if (notes.trim() && !industry.trim()) {
         body.industry = notes.trim().slice(0, 120);
@@ -232,12 +263,11 @@ export function DiagnoseApp() {
   return (
     <>
       <div className="home-hero">
-        <h1>홈페이지 검색 노출 진단</h1>
+        <h1>광고 전, 우리 회사 온라인 상태부터 진단하세요</h1>
         <p>
-          회사 홈페이지 주소와 회사명만 넣으면, 네이버·구글에서 우리 회사가{" "}
-          <strong>회사명이 아니라 핵심 사업 키워드</strong>로도 검색에 노출되는지
-          진단합니다. 무엇이 문제이고 <strong>무엇을 어떻게 고쳐야 하는지</strong>{" "}
-          점수·표·개선안이 담긴 보고서로 알려드립니다 (Markdown · HTML · PDF 저장).
+          홈페이지 주소와 회사명만 입력하면 AI가 <strong>검색·홈페이지·콘텐츠·전환 동선</strong>을
+          분석해 컨설팅 전 개선 우선순위를 찾아드립니다. 광고를 시작하기 전에
+          고객이 회사를 발견하고, 이해하고, 신뢰하고, 문의할 준비가 되었는지 확인하세요.
         </p>
       </div>
 
@@ -249,8 +279,13 @@ export function DiagnoseApp() {
       <form className="home-card" onSubmit={onSubmit}>
         <h2>진단 정보 입력</h2>
         <p className="hint">
-          필수 2항목만 채우면 됩니다. 예시를 눌러 바로 시험해 보세요.
+          필수 2항목만 채우면 됩니다. Grok 4.5 API가 웹 검색과 심층 분석을 수행합니다.
         </p>
+
+        <div className="ai-engine-fixed">
+          <strong>AI 분석 엔진 · Grok 4.5 API</strong>
+          <span>실시간 웹 검색으로 경쟁사 후보와 개선 전략을 생성합니다. API 키는 이 맥북의 로컬 서버에만 보관됩니다.</span>
+        </div>
 
         <div className="field">
           <label htmlFor="url">
@@ -335,12 +370,35 @@ export function DiagnoseApp() {
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
+            <div className="field">
+              <label htmlFor="competitors">경쟁사 홈페이지 URL (최대 3개)</label>
+              <textarea
+                id="competitors"
+                name="competitors"
+                placeholder={"https://competitor1.com\nhttps://competitor2.com"}
+                value={competitors}
+                onChange={(e) => setCompetitors(e.target.value)}
+              />
+              <p className="hint" style={{ margin: "6px 0 0" }}>입력하지 않으면 AI가 웹 검색으로 최대 3개를 자동 선정합니다. 직접 입력하면 입력값이 우선됩니다.</p>
+            </div>
+            <fieldset className="channel-fieldset">
+              <legend>사용 중인 채널</legend>
+              {[
+                ["naver", "네이버"], ["instagram", "인스타그램"], ["youtube", "유튜브"],
+                ["google_ads", "Google Ads"], ["meta", "Meta 광고"], ["email", "이메일"],
+              ].map(([value, label]) => (
+                <label key={value}>
+                  <input type="checkbox" checked={channels.includes(value)} onChange={(e) => setChannels((current) => e.target.checked ? [...current, value] : current.filter((v) => v !== value))} />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
           </div>
         )}
 
         <div className="btn-row">
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "진단 중…" : "진단 시작"}
+            {loading ? "AI 진단 중…" : "AI 사전진단 시작하기"}
           </button>
           <button
             type="button"
@@ -367,7 +425,7 @@ export function DiagnoseApp() {
         )}
         {loading && (
           <div className="alert alert-info" role="status">
-            홈페이지를 분석하는 중입니다. 보통 10~40초 정도 걸립니다.
+            홈페이지 수집과 AI 웹 검색을 진행 중입니다. 보통 30초~2분 정도 걸립니다.
           </div>
         )}
         {error && (
@@ -399,6 +457,31 @@ export function DiagnoseApp() {
 
           <div className="summary-box">{result.summary}</div>
 
+          {result.aiPrecheck?.enabled && (
+            <div className="viz-card ai-strategy-card">
+              <h3 className="viz-title">AI 심층 전략 · {result.aiPrecheck.model}</h3>
+              <p className="viz-sub">{result.aiPrecheck.summary}</p>
+              {result.aiPrecheck.priorities.length > 0 && (
+                <ol className="ai-priority-list">
+                  {result.aiPrecheck.priorities.map((item, index) => (
+                    <li key={`${item.title}-${index}`}><strong>{item.title}</strong><span>{item.reason}</span><em>실행: {item.action}</em></li>
+                  ))}
+                </ol>
+              )}
+              {result.aiPrecheck.messaging && (
+                <div className="ai-message-proposal">
+                  <b>추천 첫 화면 문구</b>
+                  <strong>{result.aiPrecheck.messaging.headline}</strong>
+                  <span>{result.aiPrecheck.messaging.subcopy}</span>
+                  <em>CTA · {result.aiPrecheck.messaging.primaryCta}</em>
+                </div>
+              )}
+              {result.aiPrecheck.competitorCandidates.length > 0 && (
+                <div className="ai-competitors"><b>AI가 검색한 경쟁사 후보</b>{result.aiPrecheck.competitorCandidates.map((item) => <a key={item.url} href={item.url} target="_blank" rel="noreferrer">{item.name}</a>)}</div>
+              )}
+            </div>
+          )}
+
           <div className="export-bar">
             <span className="export-label">보고서 저장</span>
             <button type="button" className="btn btn-export" onClick={downloadMd}>
@@ -423,6 +506,68 @@ export function DiagnoseApp() {
           {exportMsg && (
             <div className="alert alert-info" role="status">
               {exportMsg}
+            </div>
+          )}
+
+          {result.hero && result.conversion && result.adReadiness && (
+            <div className="core-diagnostics">
+              {[
+                { title: "첫 화면 메시지", score: result.hero.score, summary: result.hero.summary, checks: result.hero.checks },
+                { title: "전환 동선", score: result.conversion.score, summary: result.conversion.summary, checks: result.conversion.checks },
+                { title: `광고 집행 준비도 · ${result.adReadiness.level}`, score: result.adReadiness.score, summary: result.adReadiness.summary, checks: result.adReadiness.checks },
+              ].map((report) => (
+                <div className="core-diagnostic-card" key={report.title}>
+                  <div className="core-diagnostic-head">
+                    <strong>{report.title}</strong>
+                    <span style={{ color: scoreColor(report.score) }}>{report.score}</span>
+                  </div>
+                  <p>{report.summary}</p>
+                  <ul>
+                    {report.checks.slice(0, 5).map((check) => {
+                      const badge = DIAG_BADGE[check.status] || DIAG_BADGE.manual;
+                      return <li key={check.id}><span className={`nb-badge ${badge.cls}`}>{badge.label}</span><span><b>{check.title}</b>{check.detail}</span></li>;
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {result.servicePages && (
+            <div className="viz-card">
+              <h3 className="viz-title">서비스·상품 페이지 상세 진단</h3>
+              <p className="viz-sub">{result.servicePages.summary}</p>
+              {result.servicePages.pages.length > 0 ? (
+                <div className="ba-table-wrap">
+                  <table className="ba-table">
+                    <thead><tr><th>페이지</th><th>H1</th><th>점수</th><th>우선 보완</th></tr></thead>
+                    <tbody>
+                      {result.servicePages.pages.map((page) => (
+                        <tr key={page.url}>
+                          <td><a href={page.url} target="_blank" rel="noreferrer">{page.title || new URL(page.url).pathname}</a></td>
+                          <td>{page.h1 || "미검출"}</td>
+                          <td><strong style={{ color: scoreColor(page.score) }}>{page.score}</strong></td>
+                          <td>{page.checks.filter((c) => c.status !== "pass").slice(0, 3).map((c) => c.title).join(", ") || "양호"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : <p className="empty-diagnostic">서비스·상품 전용 페이지가 없다면 광고 전에 핵심 서비스별 랜딩페이지부터 준비하세요.</p>}
+            </div>
+          )}
+
+          {result.competitorComparison?.enabled && (
+            <div className="viz-card">
+              <h3 className="viz-title">경쟁사 표면 신호 비교 · {result.competitorComparison.source === "ai" ? "AI 자동 선정" : "직접 입력"}</h3>
+              <p className="viz-sub">{result.competitorComparison.summary}</p>
+              <div className="ba-table-wrap">
+                <table className="ba-table">
+                  <thead><tr><th>비교 항목</th><th>우리 홈페이지</th><th>경쟁사</th><th>보완 우선순위</th></tr></thead>
+                  <tbody>{result.competitorComparison.comparison.map((row) => <tr key={row.item}><td className="ba-el">{row.item}</td><td>{row.ours}</td><td>{row.competitors}</td><td>{row.interpretation}</td></tr>)}</tbody>
+                </table>
+              </div>
+              {result.competitorComparison.competitors.some((c) => c.error) && <p className="kw-note">일부 경쟁사 주소는 수집하지 못했으며 해당 항목만 비교에서 제외했습니다.</p>}
             </div>
           )}
 
@@ -559,79 +704,21 @@ export function DiagnoseApp() {
           {result.local && result.local.items.length > 0 && (
             <div className="viz-card">
               <h3 className="viz-title">
-                구글 지도·지식 패널 & 로컬 SEO · {result.local.score}/100
+                홈페이지 로컬 SEO 준비도 · {result.local.score}/100
               </h3>
               <p className="viz-sub">
-                구글에서 <strong>회사명 검색 시 우측 지도·회사정보 패널</strong>이 뜨게 하고,
-                네이버 플레이스·리뷰로 신뢰를 높이는 전략입니다.
+                홈페이지에서 확인되는 상호·주소·전화, 구조화 데이터, 지도·영업시간 신호를 점검합니다.
               </p>
-              {result.local.liveSearch && (
-                <div
-                  className={
-                    "live-search " +
-                    (!result.local.liveSearch.performed
-                      ? "ls-idle"
-                      : result.local.liveSearch.found
-                        ? "ls-found"
-                        : "ls-missing")
-                  }
-                >
-                  <div className="ls-head">
-                    {!result.local.liveSearch.performed
-                      ? "🔍 구글 맵 자동 조회"
-                      : result.local.liveSearch.found
-                        ? "✅ 구글 맵 실검색 결과 — 등록 확인됨"
-                        : "⚠️ 구글 맵 실검색 결과 — 미노출"}
-                  </div>
-                  <div className="ls-summary">{result.local.liveSearch.summary}</div>
-                  {result.local.liveSearch.found && result.local.liveSearch.match && (
-                    <div className="ls-facts">
-                      {result.local.liveSearch.match.rating != null && (
-                        <span className="ls-fact">
-                          ★ {result.local.liveSearch.match.rating} · 리뷰 {result.local.liveSearch.match.reviewCount ?? 0}
-                        </span>
-                      )}
-                      {result.local.liveSearch.match.address && (
-                        <span className="ls-fact">📍 {result.local.liveSearch.match.address}</span>
-                      )}
-                      {result.local.liveSearch.match.mapsUri && (
-                        <a className="ls-map" href={result.local.liveSearch.match.mapsUri} target="_blank" rel="noreferrer">
-                          구글 지도에서 보기 →
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="nap-row">
-                <span className="nap-chip">
-                  📞 전화 {result.local.nap.phones.length ? result.local.nap.phones.join(", ") : "미검출"}
-                </span>
-                <span className="nap-chip">
-                  📍 주소 {result.local.nap.addresses.length ? result.local.nap.addresses.join(", ") : "미검출"}
-                </span>
-                <span className={`nap-chip ${result.local.hasOrgSchema ? "nap-ok" : "nap-no"}`}>
-                  Organization {result.local.hasOrgSchema ? "○" : "×"}
-                </span>
-                <span className={`nap-chip ${result.local.hasLocalBusinessSchema ? "nap-ok" : "nap-no"}`}>
-                  LocalBusiness {result.local.hasLocalBusinessSchema ? "○" : "×"}
-                </span>
-              </div>
-
               <div className="panel-plan">
-                <div className="pp-title">🗺 구글 지도·지식 패널 노출 전략 (순서대로)</div>
-                <ol>
-                  {result.local.panelPlan.map((p, i) => (
-                    <li key={i}>
-                      <strong>{p.step}</strong>
-                      <span className="pp-why">{p.why}</span>
-                    </li>
-                  ))}
-                </ol>
+                <div className="pp-title">홈페이지 점검 기반 우선 지침</div>
+                <ol>{result.local.panelPlan.map((p, i) => <li key={i}><strong>{p.step}</strong><span className="pp-why">{p.why}</span></li>)}</ol>
               </div>
-
-              <details className="local-details">
-                <summary>로컬 SEO 점검 {result.local.items.length}건 · 붙여넣기용 구조화 데이터</summary>
+                <div className="nap-row">
+                  <span className="nap-chip">📞 전화 {result.local.nap.phones.length ? result.local.nap.phones.join(", ") : "미검출"}</span>
+                  <span className="nap-chip">📍 주소 {result.local.nap.addresses.length ? result.local.nap.addresses.join(", ") : "미검출"}</span>
+                  <span className={`nap-chip ${result.local.hasOrgSchema ? "nap-ok" : "nap-no"}`}>Organization {result.local.hasOrgSchema ? "○" : "×"}</span>
+                  <span className={`nap-chip ${result.local.hasLocalBusinessSchema ? "nap-ok" : "nap-no"}`}>LocalBusiness {result.local.hasLocalBusinessSchema ? "○" : "×"}</span>
+                </div>
                 <table className="naver-table">
                   <thead>
                     <tr><th>상태</th><th>항목</th><th>조치</th></tr>
@@ -662,7 +749,6 @@ export function DiagnoseApp() {
                     </a>
                   ))}
                 </div>
-              </details>
             </div>
           )}
 

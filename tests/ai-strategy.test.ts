@@ -82,8 +82,7 @@ describe("buildHeuristicStrategy (no API key)", () => {
 });
 
 describe("buildKeywordStrategy", () => {
-  it("uses heuristic mode without ANTHROPIC_API_KEY", async () => {
-    delete process.env.ANTHROPIC_API_KEY;
+  it("uses heuristic mode when optional API keyword strategy is disabled", async () => {
     const s = fakeSignals();
     const st = await buildKeywordStrategy(s, { url: s.url, company: "행복동행" }, s.bodyText);
     assert.equal(st.source, "heuristic");

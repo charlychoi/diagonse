@@ -8,8 +8,8 @@ export default function Home() {
       <header className="home-topbar">
         <div className="home-topbar-inner">
           <Link href="/" className="home-brand">
-            <strong>검색진단소</strong>
-            <span>홈페이지 검색 노출 진단</span>
+            <strong>AI 온라인 마케팅 사전진단</strong>
+            <span>광고 전 온라인 상태 진단</span>
           </Link>
           <nav className="home-nav">
             <Link href="/manual">사용자 설명서</Link>
@@ -33,7 +33,9 @@ export default function Home() {
         <footer className="home-footer">
           <p>
             서비스:{" "}
-            <a href="https://diagonse.vercel.app">https://diagonse.vercel.app</a>
+            <a href="https://diagnose.charlychoi.chatgpt.site">
+              diagnose.charlychoi.chatgpt.site
+            </a>
             {" · "}
             매뉴얼: <Link href="/manual">/manual</Link>
             {" · "}
@@ -45,10 +47,6 @@ export default function Home() {
             >
               github.com/charlychoi/diagonse
             </a>
-          </p>
-          <p style={{ marginTop: 8 }}>
-            올바른 주소는 <strong>diagonse</strong>.vercel.app 입니다 (
-            diagnose 아님).
           </p>
         </footer>
       </main>

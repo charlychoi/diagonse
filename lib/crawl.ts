@@ -44,6 +44,31 @@ export type ParsedSiteSignals = {
   hasAnalyticsHints: boolean;
   hasNav: boolean;
   hasFooter: boolean;
+  hero?: {
+    headline: string | null;
+    subcopy: string | null;
+    ctas: string[];
+    trustSignals: string[];
+  };
+  conversion?: {
+    ctaTexts: string[];
+    telLinks: string[];
+    mailtoLinks: string[];
+    kakaoLinks: string[];
+    naverTalkLinks: string[];
+    bookingLinks: string[];
+    contactPageUrls: string[];
+    formCount: number;
+  };
+  servicePages?: {
+    url: string;
+    title: string | null;
+    h1: string | null;
+    bodyText: string;
+    ctaTexts: string[];
+    hasForm: boolean;
+    hasContact: boolean;
+  }[];
   /** JSON-LD @type values detected (Organization, LocalBusiness, FAQPage, ...) */
   schemaTypes: string[];
   /** phone numbers detected (tel: links or Korean phone patterns) */
@@ -79,7 +104,24 @@ const SOCIAL_HOSTS = [
 ];
 
 const CTA_PATTERN =
-  /신청|문의|상담|무료|시작|구독|가입|구매|demo|trial|contact|get started|sign up|book|quote|상담하기|무료체험/i;
+  /신청|문의|상담|무료|시작|구독|가입|구매|예약|데모|demo|trial|contact|get started|sign up|book|quote|상담하기|무료체험/i;
+
+const SERVICE_PATH_PATTERN =
+  /service|product|program|course|education|consulting|solution|pricing|apply|reservation|서비스|상품|프로그램|교육|컨설팅|솔루션|신청|예약/i;
+
+function extractActionTexts(html: string): string[] {
+  const out = new Set<string>();
+  for (const match of html.matchAll(/<(?:a|button)\b[^>]*>([\s\S]*?)<\/(?:a|button)>/gi)) {
+    const text = stripTags(match[1]).trim().replace(/\s+/g, " ");
+    if (text && text.length <= 50 && CTA_PATTERN.test(text)) out.add(text);
+  }
+  return [...out].slice(0, 12);
+}
+
+function pageTitle(html: string): string | null {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return match ? decodeHtml(stripTags(match[1])).trim() || null : null;
+}
 
 function extractMetaContent(html: string, nameOrProp: string): string | null {
   const patterns = [
@@ -189,7 +231,10 @@ async function fetchPage(
 
 function discoverPaths(base: URL, html: string): string[] {
   const candidates = new Set<string>();
-  const defaults = ["/about", "/about-us", "/blog", "/contact", "/company"];
+  const defaults = [
+    "/about", "/contact", "/service", "/services", "/product", "/program",
+    "/education", "/consulting", "/solution", "/pricing", "/apply", "/reservation",
+  ];
   for (const path of defaults) {
     candidates.add(new URL(path, base.origin).toString());
   }
@@ -202,7 +247,7 @@ function discoverPaths(base: URL, html: string): string[] {
       if (abs.origin !== base.origin) continue;
       const path = abs.pathname.toLowerCase();
       if (
-        /about|company|blog|news|contact|privacy|service|product|pricing/.test(
+        /about|company|blog|news|contact|privacy|service|product|program|course|education|consulting|solution|pricing|apply|reservation|서비스|상품|프로그램|교육|컨설팅|솔루션|신청|예약/.test(
           path,
         )
       ) {
@@ -212,7 +257,7 @@ function discoverPaths(base: URL, html: string): string[] {
       /* ignore bad hrefs */
     }
   }
-  return [...candidates].slice(0, 4);
+  return [...candidates].slice(0, 10);
 }
 
 export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> {
@@ -257,6 +302,12 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
       hasAnalyticsHints: false,
       hasNav: false,
       hasFooter: false,
+      hero: { headline: null, subcopy: null, ctas: [], trustSignals: [] },
+      conversion: {
+        ctaTexts: [], telLinks: [], mailtoLinks: [], kakaoLinks: [], naverTalkLinks: [],
+        bookingLinks: [], contactPageUrls: [], formCount: 0,
+      },
+      servicePages: [],
       schemaTypes: [],
       phones: [],
       addressHints: [],
@@ -274,7 +325,7 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
   const extras = await Promise.all(
     extraUrls
       .filter((u) => u !== home.finalUrl && u !== url)
-      .slice(0, 2)
+      .slice(0, 5)
       .map((u) => fetchPage(u, 8000)),
   );
   for (const p of extras) {
@@ -331,16 +382,12 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
 
   const phoneSet = new Set<string>();
   for (const m of combined.matchAll(/tel:\+?([0-9\-() ]{7,})/gi)) {
-    const digits = m[1].replace(/[^0-9]/g, "");
-    if (digits.length >= 9 && digits.length <= 11) phoneSet.add(m[1].replace(/[()\s]/g, "").trim());
+    phoneSet.add(m[1].replace(/[()\s]/g, "").trim());
   }
-  // text: require real separators (hyphen/space) to avoid concatenated JS digit runs
-  for (const m of text.matchAll(
-    /(?<![\d-])(01[016789][-\s]\d{3,4}[-\s]\d{4}|0\d{1,2}[-\s]\d{3,4}[-\s]\d{4}|1[5-9]\d{2}[-\s]\d{4})(?![\d-])/g,
-  )) {
-    phoneSet.add(m[1].replace(/\s/g, "-"));
+  for (const m of text.matchAll(/(0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}|1\d{3}[-\s]?\d{4})/g)) {
+    phoneSet.add(m[1].replace(/\s/g, ""));
   }
-  const phones = [...phoneSet].slice(0, 4);
+  const phones = [...phoneSet].slice(0, 5);
 
   const addrSet = new Set<string>();
   for (const m of text.matchAll(
@@ -361,6 +408,40 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
   const hasHours = /영업\s?시간|영업일|운영\s?시간|openingHours|평일\s?\d|주말\s?\d|월~금|오전\s?\d.*오후\s?\d/i.test(
     combined,
   );
+
+  const fallbackHeadline = extractTags(home.html, "h2")[0]
+    || extractTags(home.html, "strong").find((value) => value.length >= 5 && value.length <= 120)
+    || null;
+  const homeH1 = h1s[0] ?? fallbackHeadline;
+  const homeParagraphs = extractTags(home.html, "p").filter((p) => p.length >= 12 && p.length <= 240);
+  const heroText = stripTags(home.html).slice(0, 5000);
+  const trustSignals = heroText
+    .split(/[.!?。\n]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 4 && s.length <= 100 && /고객사|후기|리뷰|인증|수상|누적|파트너|\d+[명건%]/i.test(s))
+    .slice(0, 6);
+  const ctaTexts = extractActionTexts(combined);
+  const telLinks = hrefs.filter((h) => /^tel:/i.test(h));
+  const mailtoLinks = hrefs.filter((h) => /^mailto:/i.test(h));
+  const kakaoLinks = hrefs.filter((h) => /pf\.kakao\.com|center-pf\.kakao\.com|kakaotalk|kakao/i.test(h));
+  const naverTalkLinks = hrefs.filter((h) => /talk\.naver\.com|booking\.naver\.com|smartplace\.naver\.com/i.test(h));
+  const bookingLinks = hrefs.filter((h) => /calendly|tally|typeform|forms\.gle|docs\.google\.com\/forms|booking|reservation|예약/i.test(h));
+  const contactPageUrls = hrefs.filter((h) => /(?:\/|^)(?:contact|inquiry|consulting|reservation|apply|문의|상담|신청|예약)(?:\/|$|[?#])/i.test(h));
+  const servicePages = pages
+    .filter((p) => SERVICE_PATH_PATTERN.test(new URL(p.finalUrl || p.url).pathname))
+    .map((p) => {
+      const bodyText = stripTags(p.html).slice(0, 12000);
+      return {
+        url: p.finalUrl || p.url,
+        title: pageTitle(p.html),
+        h1: extractTags(p.html, "h1")[0] ?? null,
+        bodyText,
+        ctaTexts: extractActionTexts(p.html),
+        hasForm: /<form\b/i.test(p.html),
+        hasContact: /contact|문의|상담|신청|예약/i.test(p.html),
+      };
+    })
+    .slice(0, 5);
 
   return {
     url: home.finalUrl || url,
@@ -400,6 +481,23 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
       ),
     hasNav: /<nav\b/i.test(combined) || /role=["']navigation["']/i.test(combined),
     hasFooter: /<footer\b/i.test(combined),
+    hero: {
+      headline: homeH1,
+      subcopy: homeParagraphs[0] ?? null,
+      ctas: extractActionTexts(home.html).slice(0, 6),
+      trustSignals,
+    },
+    conversion: {
+      ctaTexts,
+      telLinks: [...new Set(telLinks)].slice(0, 8),
+      mailtoLinks: [...new Set(mailtoLinks)].slice(0, 8),
+      kakaoLinks: [...new Set(kakaoLinks)].slice(0, 8),
+      naverTalkLinks: [...new Set(naverTalkLinks)].slice(0, 8),
+      bookingLinks: [...new Set(bookingLinks)].slice(0, 8),
+      contactPageUrls: [...new Set(contactPageUrls)].slice(0, 8),
+      formCount: (combined.match(/<form\b/gi) || []).length,
+    },
+    servicePages,
     schemaTypes,
     phones,
     addressHints,

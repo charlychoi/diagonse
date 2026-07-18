@@ -5,7 +5,7 @@ import {
 } from "../../../lib/auto-diagnose";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 180;
 export const dynamic = "force-dynamic";
 
 /**
@@ -166,11 +166,11 @@ export async function POST(request: Request) {
 function apiHelp() {
   return {
     name: "Diagonse — Marketing Diagnosis API",
-    version: "1.0.0-auto",
+    version: "2.1.0",
     description:
       "URL + company name → marketing diagnosis (JSON with markdown). Primary UX is the web UI at /.",
-    web_ui: "https://diagonse.vercel.app",
-    manual: "https://diagonse.vercel.app/manual",
+    web_ui: "https://diagnose.charlychoi.chatgpt.site",
+    manual: "https://diagnose.charlychoi.chatgpt.site/manual",
     endpoints: {
       "GET /api/diagnose":
         "?url=https://example.com&company=회사명&keywords=키워드1,키워드2&format=json|md",
@@ -180,6 +180,8 @@ function apiHelp() {
           company: "회사명",
           keywords: ["키워드1", "키워드2"],
           industry: "업종(선택)",
+          channels: ["naver", "instagram", "google_ads"],
+          competitors: ["https://competitor1.com", "https://competitor2.com"],
           format: "json | md",
         },
       },
@@ -188,7 +190,9 @@ function apiHelp() {
     notes: [
       "Prefer the web UI at / for end users (MD / HTML / PDF download).",
       "Set DIAGNOSE_API_KEY env to require Bearer token.",
-      "maxDuration 60s — crawls external homepage HTML.",
+      "Local clones use npm run dev and open the web UI on 127.0.0.1.",
+      "Set your own XAI_API_KEY in .env.local; hosted deployments use a secret environment variable.",
+      "Response includes aiPrecheck, hero, conversion, adReadiness, servicePages, and competitorComparison.",
       "Scores: surfaceScore (HTML), brandServiceBinding (brand search signal), naverGuideScore (technical).",
     ],
   };

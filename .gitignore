@@ -1,7 +1,10 @@
 node_modules
 .next
+.vinext
 out
 .vercel
+dist
+.wrangler
 .env
 .env*.local
 *.log

@@ -125,7 +125,7 @@ export async function buildStandaloneHtml(
   </style>
 </head>
 <body>
-  <p class="report-meta">Diagonse · https://diagonse.vercel.app · ${new Date().toLocaleString("ko-KR")}</p>
+  <p class="report-meta">Diagonse · AI 온라인 마케팅 사전진단 · ${new Date().toLocaleString("ko-KR")}</p>
   ${body}
 </body>
 </html>`;
