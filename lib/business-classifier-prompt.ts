@@ -6,7 +6,7 @@
 import type { ParsedSiteSignals } from "./crawl";
 import type { DiagnosisInput } from "./types";
 
-const MOTIONS = "b2c_service|b2b_service|b2g|b2b2c|b2g2c|d2c_ecommerce|retail_ecommerce|saas|marketplace|membership_community|media_content|nonprofit_public_interest|hybrid|unknown";
+const MOTIONS = "b2c_service|b2b_service|b2g|b2b2c|b2g2c|d2c_ecommerce|retail_ecommerce|saas|marketplace|membership_community|media_content|nonprofit_public_interest|social_enterprise|hybrid|unknown";
 const REVENUE = "instant_purchase|reservation_payment|quote_and_contract|project_contract|public_procurement|subscription|commission|advertising_sponsorship|membership_fee|grant_donation|free_public_program|mixed|unknown";
 const GOALS = "buy_now|add_to_cart|book_service|call_or_chat|request_quote|request_proposal|contact_sales|download_company_profile|view_case_study|apply_program|register_jobseeker|register_employer|start_trial|create_account|subscribe_content|partner_inquiry|donate";
 
@@ -47,5 +47,6 @@ export function buildClassifierPrompt(signals: ParsedSiteSignals, input: Diagnos
     "- 혼합 모델이면 secondaryMarketMotions에 명시하고 여정을 각각 만드세요.",
     "- 근거가 부족하면 primaryMarketMotion을 unknown으로 두고 confidence를 낮추세요.",
     "- B2C를 기본값으로 가정하지 마세요.",
+    "- 사회적기업·예비사회적기업·사회적협동조합·소셜벤처 인증이 확인되면 social_enterprise를 우선 검토하고, 공공 판로(B2G)와 시장 매출(B2C/B2B) 여정을 분리하세요.",
   ].join("\n");
 }

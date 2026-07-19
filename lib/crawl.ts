@@ -25,6 +25,10 @@ export type ParsedSiteSignals = {
   /** content of meta name=robots if present */
   robotsMetaContent: string | null;
   hasSitemapHint: boolean;
+  /** v4.1 실측: /robots.txt 실제 확인 결과 (null = 확인 실패) */
+  robotsTxt?: { found: boolean; disallowAll: boolean; declaresSitemap: boolean } | null;
+  /** v4.1 실측: /sitemap.xml 접근 확인 */
+  sitemapFound?: boolean;
   hasFavicon: boolean;
   https: boolean;
   wordCount: number;
@@ -277,10 +281,31 @@ function discoverPaths(base: URL, html: string): string[] {
   return [...candidates].slice(0, 10);
 }
 
+async function probeRobotsAndSitemap(origin: string): Promise<{ robotsTxt: { found: boolean; disallowAll: boolean; declaresSitemap: boolean } | null; sitemapFound: boolean }> {
+  const get = async (path: string): Promise<string | null> => {
+    try {
+      const res = await fetch(origin + path, { signal: AbortSignal.timeout(6000), redirect: "follow" });
+      if (!res.ok) return null;
+      return (await res.text()).slice(0, 20000);
+    } catch { return null; }
+  };
+  const [robots, sitemap] = await Promise.all([get("/robots.txt"), get("/sitemap.xml")]);
+  const robotsTxt = robots === null ? { found: false, disallowAll: false, declaresSitemap: false } : {
+    found: true,
+    disallowAll: /user-agent:\s*\*[\s\S]{0,200}?disallow:\s*\/\s*$/im.test(robots),
+    declaresSitemap: /^sitemap:/im.test(robots),
+  };
+  const sitemapFound = sitemap !== null && /<urlset|<sitemapindex/i.test(sitemap);
+  return { robotsTxt, sitemapFound: sitemapFound || robotsTxt.declaresSitemap };
+}
+
 export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> {
   const url = normalizeUrl(rawUrl);
   const base = new URL(url);
-  const home = await fetchPage(url);
+  const [home, probe] = await Promise.all([
+    fetchPage(url),
+    probeRobotsAndSitemap(new URL(url).origin),
+  ]);
 
   if (!home || home.status >= 400 || !home.html) {
     // Offline / blocked fallback: minimal signals so diagnosis still returns
@@ -484,6 +509,8 @@ export async function crawlAndParse(rawUrl: string): Promise<ParsedSiteSignals> 
     hasRobotsMeta: /name=["']robots["']/i.test(home.html),
     robotsMetaContent: extractMetaContent(home.html, "robots"),
     hasSitemapHint: /sitemap/i.test(combined),
+    robotsTxt: probe.robotsTxt,
+    sitemapFound: probe.sitemapFound,
     hasFavicon: /rel=["'][^"']*icon[^"']*["']/i.test(home.html),
     https: (home.finalUrl || url).startsWith("https:"),
     wordCount: words.length,

@@ -103,6 +103,10 @@ export type AutoDiagnoseResponse = {
   /** v4: 공통+여정별 적응형 점수 */
   adaptiveScores: DiagnosisResult["adaptiveScores"];
   consistencyWarnings: DiagnosisResult["consistencyWarnings"];
+  /** v4.1: 쉬운 요약·브리핑·자기검증 */
+  previsitQuality: DiagnosisResult["previsitQuality"];
+  briefMarkdown: string;
+  easyMarkdown: string;
   /** AI/heuristic 3-tier keyword strategy (non-brand visibility design) */
   keywordStrategy: DiagnosisResult["keywordStrategy"];
   /** Full markdown report — save as .md file */
@@ -272,6 +276,9 @@ export async function runAutoDiagnose(
     businessProfile: result.businessProfile,
     adaptiveScores: result.adaptiveScores,
     consistencyWarnings: result.consistencyWarnings,
+    previsitQuality: result.previsitQuality,
+    briefMarkdown: result.briefMarkdown,
+    easyMarkdown: result.easyMarkdown,
     scores: {
       /** @deprecated v4에서는 adaptiveScores를 우선 사용 (legacySurfaceScore) */
       surfaceScore: result.overallScore,

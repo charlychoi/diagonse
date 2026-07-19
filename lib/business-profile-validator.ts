@@ -6,7 +6,7 @@ import type {
   ClassificationEvidence, CustomerJourney, MarketMotion,
 } from "./business-profile-types";
 
-const MOTIONS = new Set(["b2c_service","b2b_service","b2g","b2b2c","b2g2c","d2c_ecommerce","retail_ecommerce","saas","marketplace","membership_community","media_content","nonprofit_public_interest","hybrid","unknown"]);
+const MOTIONS = new Set(["b2c_service","b2b_service","b2g","b2b2c","b2g2c","d2c_ecommerce","retail_ecommerce","saas","marketplace","membership_community","media_content","nonprofit_public_interest","social_enterprise","hybrid","unknown"]);
 const REVENUE = new Set(["instant_purchase","reservation_payment","quote_and_contract","project_contract","public_procurement","subscription","commission","advertising_sponsorship","membership_fee","grant_donation","free_public_program","mixed","unknown"]);
 const GOALS = new Set(["buy_now","add_to_cart","book_service","call_or_chat","request_quote","request_proposal","contact_sales","download_company_profile","view_case_study","apply_program","register_jobseeker","register_employer","start_trial","create_account","subscribe_content","partner_inquiry","donate"]);
 const ROLES = new Set(["economicBuyer","decisionMaker","influencer","endUser","beneficiary","supplierPartner"]);

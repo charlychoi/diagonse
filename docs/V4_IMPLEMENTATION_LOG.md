@@ -21,3 +21,16 @@
 3. `adaptive-competitors` 별도 모듈 보류 — 기존 AI 후보 선정에 프로필 문맥이 반영되며, direct/alternative/benchmark 구분은 후속
 4. hero-diagnosis·ad-readiness의 프로필별 세분화는 부분 반영(전환 N/A 경유) — 전용 체크 재작성은 후속
 5. build:sites(vinext/wrangler)는 로컬 샌드박스 네트워크 제한으로 미검증 — `next build`만 검증
+
+## v4.1 사전진단 극대화 (feature/previsit-maximize)
+
+목적: 이력관리 제외, 방문 전 사전진단의 신뢰성·품질을 AI로 극대화.
+
+- **social_enterprise 프로필 신설**: 분류(휴리스틱 최우선 + AI 프롬프트 규칙), 여정 템플릿(공공·기관 판로), 채점 5+1항목(인증/임팩트/공공구매/기관경로/시장매출 + 지원사업 균형 manual), 전화 N/A, 사회적기업·공공구매·ESG 키워드 의도
+- **AI 품질 패스(단일 호출)**: 쉬운 용어 요약 + 방문 전 브리핑 팩(페인포인트·미팅 질문 8~10) + 진단 자기검증(qualityFlags). 실패·미사용 시 규칙 기반 폴백 보장
+- **산출물**: briefMarkdown / easyMarkdown — UI에서 .md 다운로드 + 기존 openPrintPdf로 PDF 저장
+- **실측 강화**: /robots.txt·/sitemap.xml 실제 fetch — Disallow:/ 전체 차단은 fail(최우선 조치), 확인 실패는 not_observed(감점 없음)
+- 테스트 79/79 (v4 72 + v4.1 7)
+
+### 보류(후속)
+- PageSpeed Insights API 연동(키 필요), 경쟁사 direct/alternative/benchmark 구분, v3 보고서 완전 강등

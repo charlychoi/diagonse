@@ -79,6 +79,17 @@ const BUILDERS: Partial<Record<MarketMotion, (ctx: Ctx) => AdaptiveCheck[]>> = {
   ],
   membership_community: (ctx) => community(ctx),
   media_content: (ctx) => community(ctx),
+  social_enterprise: (ctx) => {
+    const c = conv(ctx.signals);
+    return [
+      check("se-cert", "사회적기업 인증·신뢰 표기", has(ctx, /사회적\s?기업|예비\s?사회적기업|사회적\s?협동조합|소셜\s?벤처|인증/), "인증·정체성 표기 감지", "사회적기업 인증 표기가 확인되지 않습니다.", "인증 마크·인증번호를 첫 화면과 푸터에 명시하세요."),
+      check("se-impact", "사회 성과(임팩트) 증거", has(ctx, /취약계층|고용|수혜|사회\s?성과|임팩트|연차\s?보고|성과\s?보고/), "임팩트 증거 감지", "사회 성과 근거가 확인되지 않습니다.", "고용 구조·수혜자 스토리·연차 성과보고를 게시하세요."),
+      check("se-procure", "공공구매·판로 대응", has(ctx, /나라장터|조달|공공\s?구매|입찰|납품|공공기관/), "공공 판로 신호 감지", "공공구매 대응 정보가 확인되지 않습니다.", "조달 등록·납품 실적·공공기관용 소개서를 정리하세요."),
+      hardCheck("se-orgpath", "기관 협력·구매 문의 경로", c.formCount > 0 || c.contactPageUrls.length > 0 || c.mailtoLinks.length > 0, "기관 문의 경로 있음", "기관 담당자용 문의 경로가 없습니다.", "협력·구매 문의 창구와 담당자 연락처를 명시하세요.", "fail"),
+      check("se-market", "시장 매출 경로(제품·서비스 구매)", has(ctx, /구매|스토어|쇼핑|서비스\s?신청|예약|스마트\s?스토어|해피빈/), "시장 판매 경로 감지", "일반 고객 구매 경로가 확인되지 않습니다.", "제품·서비스의 구매·신청 경로를 명확히 연결하세요."),
+      { id: "se-balance", title: "지원사업·시장매출 균형", status: "manual", detail: "지원사업 의존도와 자체 매출 비중은 공개 화면만으로 판단할 수 없습니다.", action: "매출 구성(공공/민간/지원)을 미팅에서 확인하고 판로 전략을 함께 설계하세요." },
+    ];
+  },
   nonprofit_public_interest: (ctx) => [
     check("np-mission", "미션·대상 명확성", Boolean(ctx.signals.h1s.length) && has(ctx, /미션|비전|목적|가치/), "미션 메시지 감지", "미션·대상이 명확하지 않습니다.", "누구를 위해 무엇을 하는 조직인지 명시하세요."),
     check("np-donate", "후원·참여 경로", has(ctx, /후원|기부|참여|자원봉사/), "후원·참여 경로 감지", "후원·참여 경로가 확인되지 않습니다.", "후원·참여 버튼을 명확히 배치하세요."),

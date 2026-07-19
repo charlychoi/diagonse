@@ -4,7 +4,7 @@
 
 export type MarketMotion =
   | "b2c_service" | "b2b_service" | "b2g" | "b2b2c" | "b2g2c"
-  | "d2c_ecommerce" | "retail_ecommerce" | "saas" | "marketplace"
+  | "d2c_ecommerce" | "retail_ecommerce" | "saas" | "marketplace" | "social_enterprise"
   | "membership_community" | "media_content" | "nonprofit_public_interest"
   | "hybrid" | "unknown";
 
@@ -21,6 +21,7 @@ export const MARKET_MOTION_LABEL: Record<MarketMotion, string> = {
   membership_community: "회원·커뮤니티",
   media_content: "콘텐츠·미디어",
   nonprofit_public_interest: "비영리·공익",
+  social_enterprise: "사회적기업(공공판로+시장매출 혼합)",
   hybrid: "복합(2개 이상 핵심)",
   unknown: "분류 보류",
 };

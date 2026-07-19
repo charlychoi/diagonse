@@ -7,6 +7,7 @@ import type { SearchMeasureBundle } from "./search-measure";
 import type { SeoPlaybook } from "./seo-playbook";
 import type { KeywordStrategy } from "./ai-strategy";
 import type { AdaptiveDiagnosisScores, BusinessProfile, BusinessProfileOverride } from "./business-profile-types";
+import type { PrevisitQualityReport } from "./previsit-quality";
 
 export type DiagnosisAxisKey =
   | "brand"
@@ -247,6 +248,12 @@ export type DiagnosisResult = {
   adaptiveScores: AdaptiveDiagnosisScores;
   /** v4: 일관성 검증 경고 (§20) */
   consistencyWarnings: { code: string; message: string }[];
+  /** v4.1: AI 품질 패스 — 쉬운 요약·방문 전 브리핑·자기검증 */
+  previsitQuality: PrevisitQualityReport;
+  /** v4.1: 방문 전 브리핑 팩 (Markdown, PDF는 print 경로) */
+  briefMarkdown: string;
+  /** v4.1: 쉬운 용어 진단 보고서 (Markdown) */
+  easyMarkdown: string;
   methodology: string;
   markdownReport: string;
 };

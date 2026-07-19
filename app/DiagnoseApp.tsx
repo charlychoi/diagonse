@@ -116,6 +116,8 @@ type DiagnoseOk = {
     grade: string | null;
     provisional: boolean;
   };
+  briefMarkdown?: string;
+  easyMarkdown?: string;
   input: { url: string; company: string; keywords?: string[]; industry?: string; competitors?: string[] };
 };
 
@@ -245,6 +247,22 @@ export function DiagnoseApp() {
     if (!result) return;
     downloadBlob(result.markdown, `${baseName}.md`, "text/markdown;charset=utf-8");
     setExportMsg(`Markdown 저장: ${baseName}.md`);
+  }
+
+  function downloadDoc(kind: "brief" | "easy", format: "md" | "pdf") {
+    if (!result) return;
+    const md = kind === "brief" ? result.briefMarkdown : result.easyMarkdown;
+    if (!md) { setExportMsg("이 결과에는 해당 문서가 없습니다. 다시 진단해 주세요."); return; }
+    const label = kind === "brief" ? "방문전브리핑" : "쉬운보고서";
+    if (format === "md") {
+      downloadBlob(md, `${baseName}_${label}.md`, "text/markdown;charset=utf-8");
+      setExportMsg(`${label} 저장: ${baseName}_${label}.md`);
+    } else {
+      void openPrintPdf(md, { company: result.input.company }).then(
+        () => setExportMsg("인쇄 창이 열립니다. «PDF로 저장»을 선택하세요."),
+        (err) => setError(err instanceof Error ? err.message : "PDF 내보내기 실패"),
+      );
+    }
   }
 
   async function downloadHtml() {
@@ -591,6 +609,19 @@ export function DiagnoseApp() {
               onClick={() => void downloadPdf()}
             >
               ⬇ PDF (인쇄 저장)
+            </button>
+            <span className="export-label" style={{ marginLeft: 12 }}>사전진단 팩</span>
+            <button type="button" className="btn btn-export" onClick={() => downloadDoc("easy", "md")}>
+              ⬇ 쉬운 보고서 (.md)
+            </button>
+            <button type="button" className="btn btn-export" onClick={() => downloadDoc("easy", "pdf")}>
+              ⬇ 쉬운 보고서 (PDF)
+            </button>
+            <button type="button" className="btn btn-export" onClick={() => downloadDoc("brief", "md")}>
+              ⬇ 방문 전 브리핑 (.md)
+            </button>
+            <button type="button" className="btn btn-export" onClick={() => downloadDoc("brief", "pdf")}>
+              ⬇ 방문 전 브리핑 (PDF)
             </button>
           </div>
 

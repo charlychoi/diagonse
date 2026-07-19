@@ -18,6 +18,7 @@ export function classifyHeuristically(signals: ParsedSiteSignals, input: Diagnos
   const text = [signals.title, signals.description, ...signals.h1s, ...signals.h2s, (signals.bodyText || "").slice(0, 6000), input.industry || ""].join(" ").toLowerCase();
   const has = (re: RegExp) => re.test(text);
   const hits: { motion: MarketMotion; claim: string; re: RegExp; strength: "strong" | "medium" }[] = [
+    { motion: "social_enterprise", claim: "사회적기업 인증·정체성 신호", re: /사회적\s?기업|예비\s?사회적기업|사회적\s?협동조합|소셜\s?벤처|사회적\s?가치|취약계층\s?고용|자활기업/, strength: "strong" },
     { motion: "retail_ecommerce", claim: "장바구니·결제·배송 신호", re: /장바구니|결제|배송|교환.?환불|무료배송|상품평|구매하기|cart|checkout/, strength: "strong" },
     { motion: "saas", claim: "구독·무료체험·데모 신호", re: /무료\s?체험|데모\s?신청|월\s?구독|요금제|api\s?연동|saas|온보딩/, strength: "strong" },
     { motion: "b2g", claim: "공공·용역·위탁 신호", re: /공공기관|지자체|정부|위탁|용역|정책\s?사업|발주|조달|입찰/, strength: "strong" },

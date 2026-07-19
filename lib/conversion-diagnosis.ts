@@ -21,7 +21,7 @@ export function evaluateConversion(signals: ParsedSiteSignals, profile?: Busines
   if (primary && primary !== "b2c_service" && primary !== "unknown") {
     const naNote = "이 비즈니스 유형의 핵심 전환이 아니므로 감점하지 않습니다(v4 해당 없음).";
     for (const c of checks) {
-      if (c.id === "conversion-tel" && (isOrgBuyerMotion(primary) || isEcommerceMotion(primary) || primary === "saas" || primary === "media_content" || primary === "marketplace")) {
+      if (c.id === "conversion-tel" && (isOrgBuyerMotion(primary) || isEcommerceMotion(primary) || primary === "saas" || primary === "media_content" || primary === "marketplace" || primary === "social_enterprise" || primary === "nonprofit_public_interest")) {
         c.status = "not_applicable"; c.detail = naNote;
       }
       if (c.id === "conversion-form" && isEcommerceMotion(primary) && c.status === "fail") {

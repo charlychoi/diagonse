@@ -16,6 +16,7 @@ const TEMPLATES: Partial<Record<MarketMotion, Omit<CustomerJourney, "id" | "audi
   marketplace: { label: "공급자·수요자 온보딩", marketMotion: "marketplace", objective: "create_account", buyingCycle: "short", expectedCtas: ["가입", "등록", "찾기"], expectedEvidence: ["검증·안전 정책", "수수료·이용 정책"] },
   membership_community: { label: "회원 가입·참여", marketMotion: "membership_community", objective: "create_account", buyingCycle: "short", expectedCtas: ["가입", "멤버십 안내"], expectedEvidence: ["운영 주체", "회원 혜택"] },
   media_content: { label: "구독·재방문", marketMotion: "media_content", objective: "subscribe_content", buyingCycle: "instant", expectedCtas: ["구독", "뉴스레터"], expectedEvidence: ["콘텐츠 구조", "발행 주기"] },
+  social_enterprise: { label: "공공·기관 판로 확대", marketMotion: "social_enterprise", objective: "request_proposal", buyingCycle: "procurement", expectedCtas: ["기관 협력·구매 문의", "회사·제품 소개서", "수행 사례"], expectedEvidence: ["사회적기업 인증", "공공 납품·수행 실적", "사회 성과(임팩트) 근거"] },
   nonprofit_public_interest: { label: "후원·참여", marketMotion: "nonprofit_public_interest", objective: "donate", buyingCycle: "short", expectedCtas: ["후원", "참여"], expectedEvidence: ["미션·투명성", "성과 보고"] },
 };
 

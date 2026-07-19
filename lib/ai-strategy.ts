@@ -464,6 +464,27 @@ export function adaptKeywordStrategyForProfile(
   if (!profile) return strategy;
   const primary = profile.primaryMarketMotion;
   const orgBuyer = ["b2b_service", "b2g", "b2b2c", "b2g2c"].includes(primary);
+  if (primary === "social_enterprise") {
+    const service = strategy.primaryService;
+    return {
+      ...strategy,
+      tier1: [
+        { keyword: service, intent: "핵심 제품·서비스 검색" },
+        { keyword: `사회적기업 ${service}`, intent: "가치소비·ESG 구매 담당자 검색" },
+        { keyword: `${service} 공공구매`, intent: "공공기관 우선구매 담당자 검색" },
+      ],
+      tier2: [
+        { keyword: `${service} 납품 사례`, intent: "기관 구매 검토 단계 검색" },
+        { keyword: `사회적기업 제품 구매`, intent: "착한소비 일반 고객 검색" },
+        ...strategy.tier2,
+      ].slice(0, 8),
+      tier3: [
+        { keyword: `ESG 협력 사회적기업`, intent: "대기업 ESG 파트너 발굴 검색" },
+        ...strategy.tier3,
+      ].slice(0, 3),
+      notes: [...(strategy.notes || []), "v4.1: 사회적기업 프로필 — 공공구매·가치소비·ESG 의도 키워드 반영"],
+    };
+  }
   if (!orgBuyer) return strategy;
   const service = strategy.primaryService;
   const banned = /(비용|추천|후기|신청\s?방법)$/;

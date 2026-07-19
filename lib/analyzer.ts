@@ -2,6 +2,8 @@ import type { ParsedSiteSignals } from "./crawl";
 import { classifyBusiness } from "./business-classifier";
 import { computeAdaptiveScores } from "./scoring/adaptive-scores";
 import { validateConsistency } from "./diagnosis-consistency";
+import { runPrevisitQualityPass } from "./previsit-quality";
+import { buildBriefMarkdown, buildEasyMarkdown } from "./previsit-markdown";
 import { crawlAndParse } from "./crawl";
 import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
@@ -779,7 +781,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     executiveSummary,
   });
 
-  const partial: Omit<DiagnosisResult, "markdownReport"> = {
+  const prePartial = {
     id,
     createdAt,
     input: {
@@ -813,6 +815,17 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     consistencyWarnings,
     keywordStrategy,
     methodology,
+  };
+
+  // v4.1: AI 품질 패스(쉬운 요약·브리핑·자기검증) — 단일 호출, 실패 시 규칙 기반 폴백
+  const previsitQuality = await runPrevisitQualityPass(
+    { ...prePartial, previsitQuality: undefined as never, briefMarkdown: "", easyMarkdown: "" },
+  );
+  const partial: Omit<DiagnosisResult, "markdownReport"> = {
+    ...prePartial,
+    previsitQuality,
+    briefMarkdown: buildBriefMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", easyMarkdown: "" }, previsitQuality),
+    easyMarkdown: buildEasyMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", easyMarkdown: "" }, previsitQuality),
   };
 
   const markdownReport = buildMarkdownReport(partial as DiagnosisResult);
