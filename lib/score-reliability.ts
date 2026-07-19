@@ -144,7 +144,7 @@ export function assessSurfaceConfidence(signals: ParsedSiteSignals): {
  * Hard ceilings: surface polish must not claim "excellent" without conversion/authority signals.
  * Prevents 75–85+ scores on marketing-looking HTML that still fail D3/D5/D6 structure tests.
  */
-export function surfaceCeilings(signals: ParsedSiteSignals): {
+export function surfaceCeilings(signals: ParsedSiteSignals, opts?: { conversionCapExempt?: boolean }): {
   ceiling: number | null;
   reason: string | null;
 } {
@@ -157,8 +157,12 @@ export function surfaceCeilings(signals: ParsedSiteSignals): {
   }
 
   if (!signals.hasCtaHints && !signals.hasForm) {
-    ceiling = Math.min(ceiling, 62);
-    reasons.push("CTA·폼 신호 없음 → 전환 관점 상한 62");
+    if (opts?.conversionCapExempt) {
+      reasons.push("CTA·폼 신호 없음 — 비B2C 프로필이므로 상한 미적용(v4)");
+    } else {
+      ceiling = Math.min(ceiling, 62);
+      reasons.push("CTA·폼 신호 없음 → 전환 관점 상한 62");
+    }
   }
 
   if (!signals.hasAnalyticsHints && !(signals.hasJsonLd || signals.hasSchemaOrg)) {
@@ -212,11 +216,12 @@ export function expectedStructureRange(
 export function finalizeSurfaceScore(
   axes: { key: DiagnosisAxisKey; score: number }[],
   signals: ParsedSiteSignals,
+  opts?: { conversionCapExempt?: boolean },
 ): { overall: number; reliability: ScoreReliability } {
   const raw = weightedAverage(axes);
   const conf = assessSurfaceConfidence(signals);
   const damped = Math.round(raw * conf.dampen);
-  const { ceiling, reason: ceilingReason } = surfaceCeilings(signals);
+  const { ceiling, reason: ceilingReason } = surfaceCeilings(signals, opts);
   const overall = ceiling != null ? Math.min(damped, ceiling) : damped;
   const range = expectedStructureRange(overall, conf.confidence);
 

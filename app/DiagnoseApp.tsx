@@ -97,7 +97,34 @@ type DiagnoseOk = {
   servicePages?: ServicePages;
   competitorComparison?: CompetitorReport;
   aiPrecheck?: AiPrecheck;
+  businessProfile?: {
+    primaryMarketMotion: string;
+    secondaryMarketMotions: string[];
+    isHybrid: boolean;
+    confidence: number;
+    confidenceLabel: "high" | "medium" | "low";
+    needsConfirmation: boolean;
+    source: string;
+    evidence: { claim: string; evidenceText: string; strength: string }[];
+    audiences: { label: string; roles: string[] }[];
+    journeys: { id: string; label: string; priority: string; objective: string }[];
+  };
+  adaptiveScores?: {
+    coreReadiness: { score: number | null; applicableCount: number; naCount: number };
+    journeyScores: { journeyId: string; journeyLabel: string; priority: string; score: number | null; applicableCount: number; naCount: number; narrative: string }[];
+    overallScore: number | null;
+    grade: string | null;
+    provisional: boolean;
+  };
   input: { url: string; company: string; keywords?: string[]; industry?: string; competitors?: string[] };
+};
+
+const MOTION_KO: Record<string, string> = {
+  b2c_service: "개인 대상 서비스(B2C)", b2b_service: "기업 대상 서비스(B2B)", b2g: "공공기관 대상(B2G)",
+  b2b2c: "기업 구매·개인 사용(B2B2C)", b2g2c: "공공 구매·시민 수혜(B2G2C)", d2c_ecommerce: "자체 상품 판매(D2C)",
+  retail_ecommerce: "온라인 판매(쇼핑몰)", saas: "소프트웨어 구독(SaaS)", marketplace: "플랫폼·마켓플레이스",
+  membership_community: "회원·커뮤니티", media_content: "콘텐츠·미디어", nonprofit_public_interest: "비영리·공익",
+  hybrid: "복합 모델", unknown: "분류 보류",
 };
 
 function scoreColor(n: number): string {
@@ -438,9 +465,51 @@ export function DiagnoseApp() {
 
       {result && (
         <section className="result-section" data-tab={tab} aria-live="polite">
+          {result.businessProfile && (
+            <div className="viz-card" style={{ marginBottom: 16, border: "1px solid #dbe4f0", borderRadius: 12, padding: 16 }}>
+              <h3 className="viz-title">🧭 비즈니스 모델 판별 (v4)</h3>
+              <p className="viz-sub">
+                주 모델: <strong>{MOTION_KO[result.businessProfile.primaryMarketMotion] || result.businessProfile.primaryMarketMotion}</strong>
+                {result.businessProfile.secondaryMarketMotions.length > 0 && (
+                  <> · 보조: {result.businessProfile.secondaryMarketMotions.map((m) => MOTION_KO[m] || m).join(", ")}</>
+                )}
+                {" · 신뢰도 "}
+                {result.businessProfile.confidenceLabel === "high" ? "높음" : result.businessProfile.confidenceLabel === "medium" ? "중간" : "낮음"}
+                {` (${Math.round(result.businessProfile.confidence * 100)}%)`}
+              </p>
+              {result.businessProfile.needsConfirmation && (
+                <p style={{ color: "#b45309", fontSize: 13, margin: "6px 0" }}>
+                  ⚠️ 자동 분류 확인이 필요합니다. 유형이 다르면 추가 정보 입력의 업종·목표를 채워 다시 진단하세요.
+                </p>
+              )}
+              {result.businessProfile.evidence.slice(0, 3).map((e, i) => (
+                <p key={i} style={{ fontSize: 13, margin: "2px 0", color: "#475569" }}>· {e.claim}</p>
+              ))}
+              {result.adaptiveScores && (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
+                  <div style={{ background: "#f1f5f9", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>공통 온라인 기반</div>
+                    <strong>{result.adaptiveScores.coreReadiness.score ?? "서술형"}</strong>
+                    <span style={{ fontSize: 12, color: "#94a3b8" }}> (제외 {result.adaptiveScores.coreReadiness.naCount})</span>
+                  </div>
+                  {result.adaptiveScores.journeyScores.map((j) => (
+                    <div key={j.journeyId} style={{ background: "#f1f5f9", borderRadius: 8, padding: "8px 12px" }}>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>{j.priority === "primary" ? "★ " : ""}{j.journeyLabel}</div>
+                      <strong>{j.score ?? "서술형"}</strong>
+                      <span style={{ fontSize: 12, color: "#94a3b8" }}> (적용 {j.applicableCount} · 제외 {j.naCount})</span>
+                    </div>
+                  ))}
+                  <div style={{ background: "#eef2ff", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>v4 종합</div>
+                    <strong>{result.adaptiveScores.overallScore !== null ? `${result.adaptiveScores.overallScore}점 (${result.adaptiveScores.grade})` : result.adaptiveScores.provisional ? "분류 확인 후 확정" : "여정별 참고"}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="score-grid">
             <div className="score-card">
-              <div className="label">AI 진단 점수</div>
+              <div className="label">AI 진단 점수(v3 참고)</div>
               <div className="value">{result.scores.surfaceScore}</div>
               <div className="sub">등급 {result.scores.grade}</div>
             </div>
