@@ -1,7 +1,5 @@
 /**
- * Public-version AI transport: Anthropic Claude with web search.
- * Used when the app runs in "public" mode (AI_MODE != "internal") and an
- * ANTHROPIC_API_KEY is configured. Grok (xAI) is reserved for internal testing.
+ * Anthropic Claude API transport with web search.
  */
 
 export type AiApiResult = {

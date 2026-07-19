@@ -1,7 +1,6 @@
 /**
  * Internal-testing AI transport: OpenAI (GPT) via the Responses API.
- * Same shape as lib/xai-api-client.ts — gated behind AI_MODE=internal in
- * lib/ai-provider.ts, never used for public traffic.
+ * Same shape as lib/xai-api-client.ts. Clone owners opt in with their own key.
  */
 
 export type OpenAiApiResult = {

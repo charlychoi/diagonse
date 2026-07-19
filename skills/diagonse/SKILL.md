@@ -114,5 +114,5 @@ npx tsx scripts/diagnose-cli.ts "<URL>" "<COMPANY>" "<KW1,KW2>"
 - `references/agent-examples.md` — 호출 예시
 
 로컬 백엔드: `http://127.0.0.1:3000/api/diagnose`
-AI 엔진: xAI Responses API `grok-4.5` + `web_search` (`XAI_API_KEY`는 `.env.local`)
+AI 엔진: 로컬 OAuth는 로그인된 Grok/Codex CLI, 복제 설치본은 사용자가 선택한 Claude/OpenAI/Gemini/xAI API. 공개 Sites는 개인 키 없이 규칙 기반 폴백.
 저장소: https://github.com/charlychoi/diagonse

@@ -2,54 +2,53 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { resolveAiConfig, aiEnabled } from "../lib/ai-provider";
 
-describe("resolveAiConfig — 공개=Claude / 내부=Grok 게이팅", () => {
-  it("공개: ANTHROPIC 키 있으면 anthropic", () => {
-    const c = resolveAiConfig({ ANTHROPIC_API_KEY: "sk-ant" });
-    assert.equal(c.provider, "anthropic");
-    assert.equal(c.mode, "public");
+describe("resolveAiConfig — local OAuth / clone-owned API", () => {
+  it("local-oauth defaults to Grok CLI without any API key", () => {
+    const c = resolveAiConfig({ AI_MODE: "local-oauth" });
+    assert.equal(c.provider, "grok_cli");
+    assert.equal(c.mode, "local");
   });
 
-  it("Grok 키가 있어도 AI_MODE!=internal 이면 Grok 미사용(공개=anthropic)", () => {
-    const c = resolveAiConfig({ ANTHROPIC_API_KEY: "sk-ant", XAI_API_KEY: "xai" });
-    assert.equal(c.provider, "anthropic");
+  it("local-oauth can select Codex CLI", () => {
+    const c = resolveAiConfig({ AI_MODE: "local-oauth", AI_PROVIDER: "codex", CODEX_MODEL: "gpt-5.6" });
+    assert.equal(c.provider, "codex_cli");
+    assert.match(c.label, /gpt-5\.6/);
   });
 
-  it("내부: AI_MODE=internal + XAI 키면 xai(Grok)", () => {
-    const c = resolveAiConfig({ AI_MODE: "internal", XAI_API_KEY: "xai" });
+  it("selects a clone owner's Claude API key", () => {
+    const c = resolveAiConfig({ AI_PROVIDER: "claude", ANTHROPIC_API_KEY: "sk-ant" });
+    assert.equal(c.provider, "anthropic");
+    assert.equal(c.mode, "api");
+  });
+
+  it("selects a clone owner's OpenAI API key", () => {
+    const c = resolveAiConfig({ AI_PROVIDER: "chatgpt", OPENAI_API_KEY: "sk-openai" });
+    assert.equal(c.provider, "openai");
+  });
+
+  it("selects a clone owner's Gemini API key", () => {
+    const c = resolveAiConfig({ AI_PROVIDER: "gemini", GEMINI_API_KEY: "gm" });
+    assert.equal(c.provider, "gemini");
+  });
+
+  it("selects a clone owner's Grok API key", () => {
+    const c = resolveAiConfig({ AI_PROVIDER: "grok", XAI_API_KEY: "xai" });
     assert.equal(c.provider, "xai");
-    assert.equal(c.mode, "internal");
   });
 
-  it("내부 모드지만 XAI 키 없고 ANTHROPIC 있으면 anthropic로 폴백", () => {
-    const c = resolveAiConfig({ AI_MODE: "internal", ANTHROPIC_API_KEY: "sk-ant" });
-    assert.equal(c.provider, "anthropic");
+  it("does not fall through to a different provider when an explicit provider lacks a key", () => {
+    const c = resolveAiConfig({ AI_PROVIDER: "openai", ANTHROPIC_API_KEY: "sk-ant" });
+    assert.equal(c.provider, "none");
   });
 
-  it("키가 전혀 없으면 none", () => {
+  it("uses the first available clone-owned API when no provider is specified", () => {
+    const c = resolveAiConfig({ OPENAI_API_KEY: "sk-openai", GEMINI_API_KEY: "gm" });
+    assert.equal(c.provider, "openai");
+  });
+
+  it("no key and no local OAuth mode means rule-based fallback", () => {
     const c = resolveAiConfig({});
     assert.equal(c.provider, "none");
     assert.equal(aiEnabled({}), false);
-  });
-
-  it("내부: AI_MODE=internal + OPENAI 키면 openai(GPT)", () => {
-    const c = resolveAiConfig({ AI_MODE: "internal", OPENAI_API_KEY: "sk-openai" });
-    assert.equal(c.provider, "openai");
-    assert.equal(c.mode, "internal");
-  });
-
-  it("내부: AI_MODE=internal + GEMINI 키면 gemini", () => {
-    const c = resolveAiConfig({ AI_MODE: "internal", GEMINI_API_KEY: "gm" });
-    assert.equal(c.provider, "gemini");
-    assert.equal(c.mode, "internal");
-  });
-
-  it("내부: 여러 키가 있으면 AI_PROVIDER로 명시 선택", () => {
-    const c = resolveAiConfig({ AI_MODE: "internal", XAI_API_KEY: "xai", OPENAI_API_KEY: "sk-openai", AI_PROVIDER: "openai" });
-    assert.equal(c.provider, "openai");
-  });
-
-  it("내부: AI_PROVIDER 미지정 시 xai → openai → gemini 순으로 첫 번째 키 사용", () => {
-    const c = resolveAiConfig({ AI_MODE: "internal", OPENAI_API_KEY: "sk-openai", GEMINI_API_KEY: "gm" });
-    assert.equal(c.provider, "openai");
   });
 });

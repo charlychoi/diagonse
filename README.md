@@ -1,59 +1,68 @@
 # AI 온라인 마케팅 사전진단
 
-회사 홈페이지 URL과 회사명을 입력하면 홈페이지 표면 신호를 분석하고, Grok 4.5 API가 실시간 웹 검색으로 경쟁사를 자동 선정해 개선 전략을 생성합니다.
+회사 홈페이지 URL과 회사명을 입력하면 홈페이지 표면 신호, 전환 동선, 광고 준비도, 서비스 페이지, 경쟁사 후보를 분석해 보고서를 만듭니다.
 
 공개 사이트: [diagnose.charlychoi.chatgpt.site](https://diagnose.charlychoi.chatgpt.site)
 
-GitHub를 복제해 실행할 때는 각 사용자가 자신의 xAI API 키를 설정합니다. API 키는 저장소에 포함되지 않습니다.
+공개 사이트와 GitHub 소스에는 저장소 소유자의 OpenAI·xAI 등 개인 API 키가 없습니다. 공개 사이트는 규칙 기반 진단으로 안전하게 동작하며, 저장소를 복제한 사용자는 자신의 Claude·ChatGPT·Gemini·Grok API 키를 선택해 AI 기능을 켤 수 있습니다.
 
-## 로컬 실행 준비
+## 빠른 실행
 
 ```bash
 npm install
 cp .env.example .env.local
-```
-
-`.env.local`에 xAI API 키를 설정합니다.
-
-```text
-XAI_API_KEY=xai-...
-XAI_MODEL=grok-4.5
-```
-
-`.env.local`은 Git에서 제외되며 브라우저로 전달되지 않습니다. 저장소를 복제한 사용자는 반드시 자신의 키를 사용해야 합니다.
-
-## 실행
-
-```bash
 npm run dev
 ```
 
-브라우저에서 `http://127.0.0.1:3000`을 엽니다.
+브라우저에서 `http://127.0.0.1:3000`을 엽니다. 아무 키도 넣지 않으면 규칙 기반 결과가 제공됩니다.
 
-## AI 진단
+## 복제 사용자의 자체 API 연결
 
-- 모델: `grok-4.5`
-- API: xAI Responses API
-- 도구: 실시간 `web_search`
-- 경쟁사를 입력하지 않으면 공식 HTTPS 홈페이지를 최대 3개 자동 선정
-- 선정한 홈페이지를 다시 수집해 CTA, 문의 폼, 콘텐츠 허브, 구조화 데이터, 본문 분량 비교
-- AI 호출이 실패해도 기본 홈페이지 진단은 계속하고 오류 사유를 보고서에 표시
+`.env.local`에서 하나의 공급자와 그 공급자의 키만 설정합니다.
 
-기본 진단은 AI 전략과 경쟁사 검색을 한 호출로 처리합니다. 세부 3층 키워드까지 별도 AI 호출로 생성하려면 `.env.local`에 `XAI_KEYWORD_STRATEGY=true`를 설정합니다.
+```text
+AI_PROVIDER=anthropic   # 또는 openai, gemini, xai
+ANTHROPIC_API_KEY=복제한_사용자의_키
+```
 
-## API
+대응 변수는 `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`입니다. `.env.local`은 Git에서 제외되고 키는 서버에서만 읽으며 브라우저에 전달하지 않습니다.
+
+## Mac 로컬 OAuth 연결
+
+API 키를 파일에 입력하지 않고 로그인된 CLI 구독 계정을 로컬 테스트에만 재사용할 수 있습니다.
+
+### Grok OAuth
 
 ```bash
-curl -sS -X POST "http://127.0.0.1:3000/api/diagnose" \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com","company":"회사명","industry":"업종"}'
+grok login --oauth
 ```
+
+```text
+AI_MODE=local-oauth
+AI_PROVIDER=grok
+GROK_MODEL=grok-4.5
+```
+
+### ChatGPT/Codex OAuth
+
+```bash
+codex login
+```
+
+```text
+AI_MODE=local-oauth
+AI_PROVIDER=codex
+CODEX_MODEL=gpt-5.6
+```
+
+애플리케이션은 CLI 명령을 호출할 뿐 OAuth 토큰이나 로그인 이메일을 읽거나 복사하지 않습니다. 이 방식은 로컬 Mac 전용이며 Sites 같은 공개 호스팅에서는 실행되지 않습니다. Codex는 공식 문서의 [ChatGPT 로그인](https://developers.openai.com/codex/auth/)과 [`codex exec`](https://developers.openai.com/codex/noninteractive/)을, Grok은 공식 [CLI OAuth 로그인](https://docs.x.ai/build/cli/reference)과 [headless 실행](https://docs.x.ai/build/cli/headless-scripting)을 사용합니다.
 
 ## 검증
 
 ```bash
 npm test
 npm run build
+npm run build:sites
 ```
 
-호스팅 환경에서도 `XAI_API_KEY`는 소스가 아닌 비밀 환경 변수로 설정해야 합니다.
+자세한 로컬 설정은 [RUN_LOCAL.md](./RUN_LOCAL.md), 진단 기준은 [USER_MANUAL.md](./USER_MANUAL.md)를 참고하세요.
