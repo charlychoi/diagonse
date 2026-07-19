@@ -1,18 +1,11 @@
 /**
  * AI provider selection.
  *
- * Policy (per product requirement):
- *  - PUBLIC version → uses the public AI provider (Anthropic Claude) when
- *    ANTHROPIC_API_KEY is set. This is what real/public users get.
- *  - INTERNAL testing only → xAI Grok, OpenAI GPT, or Google Gemini. These run
- *    ONLY when AI_MODE="internal" AND a matching key is set — never for
- *    public users. Pick which one with AI_PROVIDER=xai|openai|gemini, or
- *    leave unset to use whichever internal key is present (xai → openai →
- *    gemini priority).
+ * Policy:
+ *  - LOCAL OAuth mode reuses a signed-in Grok or Codex CLI on this Mac only.
+ *  - API mode lets each clone owner supply their own Anthropic, OpenAI,
+ *    Gemini, or xAI key on the server.
  *  - If no usable key → provider "none" (rule-based fallback with honest note).
- *
- * This guarantees the expensive internal-testing keys are never exercised by
- * public traffic, while the public build still runs a full AI analysis.
  */
 
 import { callAnthropicApi, type AiApiResult } from "./anthropic-api-client";
@@ -20,38 +13,43 @@ import { callXaiApi } from "./xai-api-client";
 import { callOpenAiApi } from "./openai-api-client";
 import { callGeminiApi } from "./gemini-api-client";
 
-export type AiMode = "internal" | "public" | "none";
+export type AiMode = "local" | "api" | "none";
 
 export type AiConfig = {
   mode: AiMode;
-  provider: "xai" | "openai" | "gemini" | "anthropic" | "none";
+  provider: "xai" | "openai" | "gemini" | "anthropic" | "codex_cli" | "grok_cli" | "none";
   label: string;
 };
 
-const INTERNAL_PROVIDERS = [
-  { provider: "xai" as const, name: "Grok", keyEnv: "XAI_API_KEY", modelEnv: "XAI_MODEL", defaultModel: "grok-4.5" },
+const API_PROVIDERS = [
+  { provider: "anthropic" as const, name: "Claude", keyEnv: "ANTHROPIC_API_KEY", modelEnv: "ANTHROPIC_MODEL", defaultModel: "claude-sonnet-4-5" },
   { provider: "openai" as const, name: "GPT", keyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", defaultModel: "gpt-5.6" },
   { provider: "gemini" as const, name: "Gemini", keyEnv: "GEMINI_API_KEY", modelEnv: "GEMINI_MODEL", defaultModel: "gemini-2.5-pro" },
+  { provider: "xai" as const, name: "Grok", keyEnv: "XAI_API_KEY", modelEnv: "XAI_MODEL", defaultModel: "grok-4.5" },
 ];
 
 export function resolveAiConfig(env: Record<string, string | undefined> = process.env): AiConfig {
-  const internal = (env.AI_MODE || "").toLowerCase() === "internal";
-  if (internal) {
-    const preferred = (env.AI_PROVIDER || "").toLowerCase();
-    const candidates = preferred
-      ? INTERNAL_PROVIDERS.filter((p) => p.provider === preferred)
-      : INTERNAL_PROVIDERS;
-    const match = candidates.find((p) => env[p.keyEnv]);
-    if (match) {
-      const model = env[match.modelEnv] || match.defaultModel;
-      return { mode: "internal", provider: match.provider, label: `${match.name} (${model}) · 내부 테스트` };
+  const mode = (env.AI_MODE || "").toLowerCase();
+  const preferred = (env.AI_PROVIDER || "").toLowerCase();
+
+  if (mode === "local" || mode === "local-oauth" || mode === "oauth") {
+    if (["codex", "chatgpt", "gpt", "openai"].includes(preferred)) {
+      const model = env.CODEX_MODEL || "gpt-5.6";
+      return { mode: "local", provider: "codex_cli", label: `Codex OAuth (${model}) · 이 Mac 전용` };
     }
+    const model = env.GROK_MODEL || "grok-4.5";
+    return { mode: "local", provider: "grok_cli", label: `Grok OAuth (${model}) · 이 Mac 전용` };
   }
-  if (env.ANTHROPIC_API_KEY) {
-    return { mode: "public", provider: "anthropic", label: `Claude (${env.ANTHROPIC_MODEL || "claude-sonnet-4-5"}) · 공개` };
-  }
-  if (env.OPENAI_API_KEY) {
-    return { mode: "public", provider: "openai", label: `GPT (${env.OPENAI_MODEL || "gpt-5.6"}) · 공개` };
+
+  const aliases: Record<string, string> = { claude: "anthropic", chatgpt: "openai", gpt: "openai", grok: "xai" };
+  const normalized = aliases[preferred] || preferred;
+  const candidates = normalized
+    ? API_PROVIDERS.filter((p) => p.provider === normalized)
+    : API_PROVIDERS;
+  const match = candidates.find((p) => env[p.keyEnv]);
+  if (match) {
+    const model = env[match.modelEnv] || match.defaultModel;
+    return { mode: "api", provider: match.provider, label: `${match.name} API (${model}) · 사용자 키` };
   }
   return { mode: "none", provider: "none", label: "규칙 기반(폴백)" };
 }
@@ -69,6 +67,13 @@ export async function callAi(
   options: { webSearch?: boolean; fetchImpl?: typeof fetch; timeoutMs?: number; config?: AiConfig } = {},
 ): Promise<AiApiResult> {
   const config = options.config || resolveAiConfig();
+  if (config.provider === "codex_cli" || config.provider === "grok_cli") {
+    const { callLocalCliAi } = await import("./local-cli-ai");
+    return callLocalCliAi(config.provider, prompt, {
+      webSearch: options.webSearch,
+      timeoutMs: options.timeoutMs,
+    });
+  }
   if (config.provider === "xai") {
     const r = await callXaiApi(prompt, { webSearch: options.webSearch, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
     return { provider: "xai", model: r.model, output: r.output, citations: r.citations };
@@ -84,5 +89,5 @@ export async function callAi(
   if (config.provider === "anthropic") {
     return callAnthropicApi(prompt, { webSearch: options.webSearch, fetchImpl: options.fetchImpl, timeoutMs: options.timeoutMs });
   }
-  throw new Error("사용 가능한 AI 프로바이더가 없습니다. 공개 버전은 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY, 내부 테스트는 AI_MODE=internal + XAI/OPENAI/GEMINI 키 중 하나가 필요합니다.");
+  throw new Error("사용 가능한 AI가 없습니다. 로컬 OAuth는 AI_MODE=local-oauth와 Grok/Codex 로그인이, API 방식은 사용자의 ANTHROPIC/OPENAI/GEMINI/XAI_API_KEY 중 하나가 필요합니다.");
 }

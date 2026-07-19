@@ -1,7 +1,7 @@
 /**
  * Internal-testing AI transport: Google Gemini via the Generative Language API.
  * Same shape as lib/xai-api-client.ts / lib/openai-api-client.ts — gated
- * behind AI_MODE=internal in lib/ai-provider.ts, never used for public traffic.
+ * Clone owners opt in with their own key in the server environment.
  */
 
 export type GeminiApiResult = {

@@ -31,7 +31,7 @@ type ServicePages = { pages: { url: string; title: string | null; h1: string | n
 type CompetitorReport = { enabled: boolean; source: "user" | "ai" | "none"; competitors: { url: string; name: string | null; title: string | null; error?: string; strengths: string[] }[]; comparison: { item: string; ours: string; competitors: string; interpretation: string }[]; summary: string; topActions: string[] };
 type AiPrecheck = {
   enabled: boolean;
-  provider: "openai" | "xai" | "none";
+  provider: "anthropic" | "openai" | "xai" | "gemini" | "none";
   model: string | null;
   usedWebSearch: boolean;
   summary: string;

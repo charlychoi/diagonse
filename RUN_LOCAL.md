@@ -1,85 +1,84 @@
-# 로컬 컴퓨터에서 라이브 데모 실행하기
+# Mac에서 로컬 진단 실행하기
 
-내 컴퓨터에서 실제 AI 진단(크롤 + 경쟁사 웹검색 + 구글 패널 확인)을 그대로 돌려볼 수 있습니다.
+## 1. 설치와 실행
 
-## 1. 준비물
-
-- **Node.js 22.13 이상** — 터미널에서 `node -v` 로 확인. 없으면 https://nodejs.org 에서 LTS 설치.
-- **Git** — `git --version`
-- **AI API 키** (아래 중 하나)
-  - 공개 방식(권장): **Anthropic Claude** 키 — https://console.anthropic.com → API Keys
-  - 내부 테스트 방식: **xAI Grok**(https://console.x.ai) · **OpenAI GPT**(https://platform.openai.com/api-keys) · **Google Gemini**(https://aistudio.google.com/apikey) 중 하나
-
-## 2. 내려받기 & 설치
+Node.js 22.13 이상과 Git이 필요합니다.
 
 ```bash
 git clone https://github.com/charlychoi/diagonse.git
 cd diagonse
 npm install
-```
-
-## 3. `.env.local` 만들기
-
-`diagonse` 폴더 안에 **`.env.local`** 파일을 새로 만들고, 아래 중 하나를 넣습니다.
-
-### 방법 A — 공개 방식(Claude, 권장)
-
-```
-ANTHROPIC_API_KEY=sk-ant-여기에_본인_키
-ANTHROPIC_MODEL=claude-sonnet-4-5
-```
-
-> 모델명은 본인 계정에서 쓸 수 있는 값으로. 오류가 나면 `claude-3-5-sonnet-latest` 로 바꿔보세요.
-
-### 방법 B — 내부 테스트 방식(Grok / GPT / Gemini)
-
-```
-AI_MODE=internal
-
-# 셋 중 하나만 넣으면 됩니다
-XAI_API_KEY=xai-여기에_본인_키
-XAI_MODEL=grok-4.5
-
-OPENAI_API_KEY=sk-여기에_본인_키
-OPENAI_MODEL=gpt-5
-
-GEMINI_API_KEY=여기에_본인_키
-GEMINI_MODEL=gemini-2.5-pro
-```
-
-> `AI_MODE=internal` 이 있어야 위 3개 중 하나가 동작합니다. 없으면 공개 방식(Claude)로 처리됩니다.
-> 키를 여러 개 넣었다면 `AI_PROVIDER=xai` 처럼 명시해서 하나를 고르세요. 비워두면 xai → openai → gemini 순으로 값이 있는 첫 번째 키를 씁니다.
-
-키를 아무것도 넣지 않아도 앱은 실행되지만, AI 없이 규칙 기반 결과만 나옵니다.
-
-## 4. 실행
-
-```bash
+cp .env.example .env.local
 npm run dev
 ```
 
-터미널에 `Ready` 와 `http://127.0.0.1:3000` 이 뜨면, 브라우저에서 **http://127.0.0.1:3000** 접속.
+브라우저에서 `http://127.0.0.1:3000`을 엽니다. 키나 OAuth를 설정하지 않아도 규칙 기반 진단은 동작합니다.
 
-## 5. 데모 테스트 (서브온)
+## 2. 방법 A — 내 API 키 사용
 
-화면에서:
-- 홈페이지 URL: `https://theserveon.com`
-- 회사명: `서브온`
-- (선택) 핵심 키워드: `병원동행`
+Claude, ChatGPT, Gemini, Grok 중 하나를 골라 `.env.local`에 본인의 키를 넣습니다.
 
-→ **진단 시작**. 20~60초 후 AI 종합 진단, 경쟁사 비교, 구글 지도·지식 패널 실검색 결과가 나옵니다.
+```text
+AI_PROVIDER=openai
+OPENAI_API_KEY=내_OpenAI_API_키
+OPENAI_MODEL=gpt-5.6
+```
 
-## 자주 겪는 문제
+공급자별 선택값과 키는 다음과 같습니다.
 
-| 증상 | 해결 |
-|---|---|
-| `node: command not found` | Node.js 미설치 → nodejs.org에서 설치 후 터미널 재시작 |
-| AI 결과가 "규칙 기반" 으로만 나옴 | `.env.local` 키 확인, 파일이 `diagonse` 폴더 루트에 있는지 확인, `npm run dev` 재시작 |
-| Claude 모델 오류 | `ANTHROPIC_MODEL` 을 `claude-3-5-sonnet-latest` 로 변경 |
-| 포트 3000 사용 중 | `npm run dev -- -p 3001` 로 다른 포트 사용 |
-| 크롤 실패/빈 결과 | 대상 사이트가 자바스크립트 렌더링이면 본문 수집이 적을 수 있음(정상). 키워드를 직접 입력하면 정확도↑ |
+| 서비스 | `AI_PROVIDER` | 키 변수 |
+| --- | --- | --- |
+| Claude | `anthropic` | `ANTHROPIC_API_KEY` |
+| ChatGPT API | `openai` | `OPENAI_API_KEY` |
+| Gemini | `gemini` | `GEMINI_API_KEY` |
+| Grok API | `xai` | `XAI_API_KEY` |
 
-## 참고
+키는 `.env.local`에만 두며 GitHub에 커밋하지 마세요.
 
-- `.env.local` 은 `.gitignore` 에 있어 깃에 올라가지 않습니다(키 안전).
-- 종료: 터미널에서 `Ctrl + C`.
+## 3. 방법 B — 이 Mac의 OAuth 로그인 사용
+
+이 방법은 API 키를 프로젝트에 입력하지 않습니다. 공식 CLI가 보관하는 로컬 로그인 세션만 재사용합니다.
+
+### Grok을 선택할 때
+
+```bash
+grok login --oauth
+grok whoami
+```
+
+`.env.local`:
+
+```text
+AI_MODE=local-oauth
+AI_PROVIDER=grok
+GROK_MODEL=grok-4.5
+```
+
+### ChatGPT/Codex를 선택할 때
+
+```bash
+codex login
+codex login status
+```
+
+`.env.local`:
+
+```text
+AI_MODE=local-oauth
+AI_PROVIDER=codex
+CODEX_MODEL=gpt-5.6
+```
+
+서버를 다시 시작한 뒤 `http://127.0.0.1:3000/api/health?ai=1`에서 실제 연결을 확인할 수 있습니다. OAuth 모드는 로컬에서만 사용하세요. 공개 Sites에는 CLI도 로그인 세션도 없으므로 규칙 기반으로 동작합니다.
+
+## 문제 해결
+
+| 증상 | 확인할 내용 |
+| --- | --- |
+| 규칙 기반으로만 표시 | `.env.local` 위치와 `AI_MODE`, `AI_PROVIDER`를 확인하고 서버 재시작 |
+| `grok CLI가 설치되어 있지 않습니다` | [Grok CLI 안내](https://docs.x.ai/build/overview)에 따라 설치 후 `grok login --oauth` |
+| `codex CLI가 설치되어 있지 않습니다` | Codex CLI 설치 후 `codex login` |
+| OAuth 오류 | `grok whoami` 또는 `codex login status`로 로그인 상태 확인 |
+| 포트 3000 사용 중 | `npm run dev -- -p 3001` |
+
+공식 참고: [Codex 인증](https://developers.openai.com/codex/auth/), [Codex 비대화식 실행](https://developers.openai.com/codex/noninteractive/), [Grok CLI 명령](https://docs.x.ai/build/cli/reference), [Grok headless 실행](https://docs.x.ai/build/cli/headless-scripting).
