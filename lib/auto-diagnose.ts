@@ -119,7 +119,7 @@ export type AutoDiagnoseResponse = {
 export type AutoDiagnoseError = {
   ok: false;
   error: string;
-  code: "VALIDATION" | "DIAGNOSIS" | "INTERNAL";
+  code: "VALIDATION" | "DIAGNOSIS" | "INTERNAL" | "EXPIRED";
 };
 
 const VERSION = "4.0.0";

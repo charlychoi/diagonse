@@ -226,11 +226,22 @@ export function DiagnoseApp() {
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [docKind, setDocKind] = useState<DocKind>("full");
   const [docFormat, setDocFormat] = useState<DocFormat>("md");
+  const [expiryInfo, setExpiryInfo] = useState<{ expired: boolean; message: string | null } | null>(null);
 
   useEffect(() => {
     return () => {
       if (progressTimer.current) clearInterval(progressTimer.current);
     };
+  }, []);
+
+  // 체험 배포 만료 가드: 서버에 DEPLOY_EXPIRES_AT이 설정된 경우에만 동작(평소엔 영향 없음)
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((d: { expiry?: { expired?: boolean; message?: string | null } }) => {
+        if (d?.expiry) setExpiryInfo({ expired: !!d.expiry.expired, message: d.expiry.message || null });
+      })
+      .catch(() => {});
   }, []);
 
   const baseName = useMemo(() => {
@@ -243,6 +254,11 @@ export function DiagnoseApp() {
     setError(null);
     setExportMsg(null);
     setResult(null);
+
+    if (expiryInfo?.expired) {
+      setError(expiryInfo.message || "이 체험 배포는 종료되었습니다.");
+      return;
+    }
 
     const cleanUrl = url.trim();
     const cleanCompany = company.trim();
@@ -391,6 +407,12 @@ export function DiagnoseApp() {
         개선 우선순위와 실행안을 제시하며, 실제 광고·매출 성과는 실행 후 데이터로 함께 검증합니다.
       </div>
 
+      {expiryInfo?.expired && (
+        <div className="alert alert-error" role="alert">
+          ⏰ {expiryInfo.message || "이 체험 배포는 종료되었습니다."}
+        </div>
+      )}
+
       <form className="home-card" onSubmit={onSubmit}>
         <h2>진단 정보 입력</h2>
         <p className="hint">
@@ -512,8 +534,8 @@ export function DiagnoseApp() {
         )}
 
         <div className="btn-row">
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "AI 진단 중…" : "AI 사전진단 시작하기"}
+          <button type="submit" className="btn btn-primary" disabled={loading || !!expiryInfo?.expired}>
+            {loading ? "AI 진단 중…" : expiryInfo?.expired ? "체험 기간 종료" : "AI 사전진단 시작하기"}
           </button>
           <button
             type="button"

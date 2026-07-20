@@ -3,6 +3,7 @@ import {
   validateAutoRequest,
   type AutoDiagnoseError,
 } from "../../../lib/auto-diagnose";
+import { isDeploymentExpired, expiryMessage } from "../../../lib/deployment-expiry";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -19,6 +20,11 @@ export const dynamic = "force-dynamic";
  *
  * Optional: Authorization: Bearer <DIAGNOSE_API_KEY> if env is set.
  */
+
+function checkExpiry(): AutoDiagnoseError | null {
+  if (!isDeploymentExpired()) return null;
+  return { ok: false, error: expiryMessage(), code: "EXPIRED" };
+}
 
 function checkApiKey(request: Request): AutoDiagnoseError | null {
   const required = process.env.DIAGNOSE_API_KEY;
@@ -54,6 +60,10 @@ function parseQuery(url: URL) {
 }
 
 export async function GET(request: Request) {
+  const expiredErr = checkExpiry();
+  if (expiredErr) {
+    return Response.json(expiredErr, { status: 403 });
+  }
   const authErr = checkApiKey(request);
   if (authErr) {
     return Response.json(authErr, { status: 401 });
@@ -106,6 +116,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const expiredErr = checkExpiry();
+  if (expiredErr) {
+    return Response.json(expiredErr, { status: 403 });
+  }
   const authErr = checkApiKey(request);
   if (authErr) {
     return Response.json(authErr, { status: 401 });
