@@ -2,7 +2,7 @@
  * v4 보고서 선행 섹션 (PRD §15) — 기존 보고서 상단에 배치되는 Markdown.
  */
 import type { AdaptiveDiagnosisScores, BusinessProfile, JourneyScoreCard, ScoreCard } from "./business-profile-types";
-import { MARKET_MOTION_LABEL } from "./business-profile-types";
+import { MARKET_MOTION_LABEL, CONVERSION_GOAL_LABEL, BUYING_CYCLE_LABEL } from "./business-profile-types";
 import { shouldHideCard } from "./scoring/journey-score";
 import type { ConsistencyWarning } from "./diagnosis-consistency";
 
@@ -32,14 +32,21 @@ export function buildV4Sections(
   lines.push("");
   lines.push(`- **주 모델:** ${MARKET_MOTION_LABEL[profile.primaryMarketMotion]}`);
   if (profile.secondaryMarketMotions.length) lines.push(`- **보조 모델:** ${profile.secondaryMarketMotions.map((m) => MARKET_MOTION_LABEL[m]).join(", ")}`);
-  lines.push(`- **판별 신뢰도:** ${profile.confidenceLabel === "high" ? "높음" : profile.confidenceLabel === "medium" ? "중간" : "낮음"} (${profile.confidence.toFixed(2)}) · 출처: ${profile.source === "ai_web" ? "AI 웹 분석" : profile.source === "user_override" ? "사용자 지정" : "규칙 기반(제한적)"}`);
-  if (profile.needsConfirmation) lines.push(`- ⚠️ **분류 확인 필요:** 신뢰도가 낮거나 자동 분류입니다. 유형이 다르면 \`businessProfileOverride\`로 수정하세요.`);
+  const confidencePct = Math.round(profile.confidence * 100);
+  const confidenceKo = profile.confidenceLabel === "high" ? "높음" : profile.confidenceLabel === "medium" ? "중간" : "낮음";
+  const sourceKo = profile.source === "ai_web" ? "AI가 실제 웹 검색까지 해서 판단" : profile.source === "user_override" ? "컨설턴트가 직접 지정" : "자동 규칙으로 1차 추정(정확도 제한적)";
+  lines.push(`- **판별 확신도:** ${confidenceKo} (${confidencePct}%) · ${sourceKo}`);
+  if (profile.needsConfirmation) lines.push(`- ⚠️ **방문 시 꼭 확인하세요:** 자동 분류의 확신도가 낮습니다. 실제 회사 상황과 다르면 컨설턴트가 유형을 다시 지정할 수 있습니다.`);
   if (profile.evidence.length) {
-    lines.push("", "**핵심 근거**", "");
-    profile.evidence.slice(0, 4).forEach((e) => lines.push(`- ${e.claim} — “${e.evidenceText.slice(0, 80)}” (${e.strength === "strong" ? "강" : e.strength === "medium" ? "중" : "약"})`));
+    lines.push("", "**이렇게 판단한 이유**", "");
+    profile.evidence.slice(0, 4).forEach((e) => lines.push(`- ${e.claim} — 홈페이지에서 “${e.evidenceText.slice(0, 80)}” 라는 내용을 확인했습니다. (근거 ${e.strength === "strong" ? "확실함" : e.strength === "medium" ? "보통" : "약함"})`));
   }
   if (profile.alternativeHypotheses.length) {
-    lines.push("", `**대안 가설:** ${profile.alternativeHypotheses.map((h) => `${MARKET_MOTION_LABEL[h.marketMotion]}(${h.reason})`).join(" · ")}`);
+    lines.push("", `**다르게 볼 수도 있는 가능성**`, "");
+    profile.alternativeHypotheses.forEach((h) => {
+      const sentence = h.reason && h.reason.trim() ? h.reason.trim() : `${MARKET_MOTION_LABEL[h.marketMotion]}에 더 가까운 회사일 수도 있습니다.`;
+      lines.push(`- ${sentence} *(참고 유형: ${MARKET_MOTION_LABEL[h.marketMotion]})*`);
+    });
   }
 
   lines.push("", `## 2. 고객·구매자·수혜자 지도`, "");
@@ -54,13 +61,19 @@ export function buildV4Sections(
 
   lines.push("", `## 3. 핵심 고객 여정과 전환`, "");
   profile.journeys.forEach((j) => {
-    lines.push(`- **${j.label}** (${j.priority === "primary" ? "주 여정" : j.priority === "secondary" ? "보조 여정" : "지원 여정"} · ${MARKET_MOTION_LABEL[j.marketMotion]}) — 목표 전환: ${j.objective} · 구매 주기: ${j.buyingCycle} · 기대 CTA: ${j.expectedCtas.slice(0, 3).join(", ") || "-"}`);
+    const priorityKo = j.priority === "primary" ? "가장 중요한 여정" : j.priority === "secondary" ? "그다음으로 중요한 여정" : "함께 챙길 여정";
+    const goalKo = CONVERSION_GOAL_LABEL[j.objective] || j.objective;
+    const cycleKo = BUYING_CYCLE_LABEL[j.buyingCycle] || j.buyingCycle;
+    lines.push(`- **${j.label}** — ${priorityKo} · 대상: ${MARKET_MOTION_LABEL[j.marketMotion]} 고객`);
+    lines.push(`  - 이 사람들이 하길 바라는 행동: **${goalKo}**`);
+    lines.push(`  - 결정 속도: ${cycleKo}`);
+    if (j.expectedCtas.length) lines.push(`  - 화면에 있어야 할 버튼·문구 예시: ${j.expectedCtas.slice(0, 3).join(", ")}`);
   });
 
   lines.push("", `## 4. 공통 온라인 기반 — ${fmtScore(scores.coreReadiness)}`, "", cardTable(scores.coreReadiness));
 
   lines.push("", `## 5. 여정별 전환 준비도`);
-  if (scores.provisional) lines.push("", `> ⚠️ 분류 신뢰도가 낮아 **임시 진단**입니다. 비즈니스 유형 확인 후 확정됩니다. 단일 종합 등급은 표시하지 않습니다.`);
+  if (scores.provisional) lines.push("", `> ⚠️ 비즈니스 유형 판별 확신도가 낮아 **임시 진단**입니다. 방문 시 유형을 확인하면 점수가 확정됩니다. 지금은 단일 종합 등급을 표시하지 않습니다.`);
   scores.journeyScores.forEach((j: JourneyScoreCard) => {
     if (shouldHideCard(j)) return;
     lines.push("", `### ${j.journeyLabel} — ${fmtScore(j)}`, "", j.narrative, "", cardTable(j));
@@ -71,9 +84,9 @@ export function buildV4Sections(
     lines.push("", `**종합 등급:** ${scores.provisional ? "분류 확인 후 확정" : "혼합 모델 — 여정별 점수를 각각 참고하세요(단일 종합점수는 보조값)"} `);
   }
 
-  const naItems = [scores.coreReadiness, ...scores.journeyScores].flatMap((c) => c.checks.filter((ch) => ch.status === "not_applicable" || ch.status === "manual").map((ch) => `${ch.title}(${ch.status === "manual" ? "직접 확인" : "해당 없음"})`));
-  if (naItems.length) lines.push("", `**적용 제외·직접 확인 항목:** ${[...new Set(naItems)].join(" · ")}`);
-  if (warnings.length) lines.push("", `**일관성 검증 메모:** ${warnings.map((w) => w.message).join(" / ")}`);
+  const naItems = [scores.coreReadiness, ...scores.journeyScores].flatMap((c) => c.checks.filter((ch) => ch.status === "not_applicable" || ch.status === "manual").map((ch) => `${ch.title}(${ch.status === "manual" ? "직접 확인 필요" : "이 회사엔 해당 없음"})`));
+  if (naItems.length) lines.push("", `**점수에서 뺀 항목(감점 아님):** ${[...new Set(naItems)].join(" · ")}`);
+  if (warnings.length) lines.push("", `**진단 시 참고사항:** ${warnings.map((w) => w.message).join(" / ")}`);
 
   return lines.join("\n");
 }

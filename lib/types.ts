@@ -252,8 +252,8 @@ export type DiagnosisResult = {
   previsitQuality: PrevisitQualityReport;
   /** v4.1: 방문 전 브리핑 팩 (Markdown, PDF는 print 경로) */
   briefMarkdown: string;
-  /** v4.1: 쉬운 용어 진단 보고서 (Markdown) */
-  easyMarkdown: string;
+  /** v4.2: 사전진단 상세 보고서(markdownReport)를 쉬운 말로 요약한 Markdown */
+  summaryMarkdown: string;
   methodology: string;
   markdownReport: string;
 };

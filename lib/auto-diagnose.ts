@@ -106,7 +106,7 @@ export type AutoDiagnoseResponse = {
   /** v4.1: 쉬운 요약·브리핑·자기검증 */
   previsitQuality: DiagnosisResult["previsitQuality"];
   briefMarkdown: string;
-  easyMarkdown: string;
+  summaryMarkdown: string;
   /** AI/heuristic 3-tier keyword strategy (non-brand visibility design) */
   keywordStrategy: DiagnosisResult["keywordStrategy"];
   /** Full markdown report — save as .md file */
@@ -278,7 +278,7 @@ export async function runAutoDiagnose(
     consistencyWarnings: result.consistencyWarnings,
     previsitQuality: result.previsitQuality,
     briefMarkdown: result.briefMarkdown,
-    easyMarkdown: result.easyMarkdown,
+    summaryMarkdown: result.summaryMarkdown,
     scores: {
       /** @deprecated v4에서는 adaptiveScores를 우선 사용 (legacySurfaceScore) */
       surfaceScore: result.overallScore,

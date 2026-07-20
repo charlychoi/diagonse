@@ -45,6 +45,35 @@ export type ConversionGoal =
   | "register_jobseeker" | "register_employer" | "start_trial"
   | "create_account" | "subscribe_content" | "partner_inquiry" | "donate";
 
+export const CONVERSION_GOAL_LABEL: Record<ConversionGoal, string> = {
+  buy_now: "바로 구매하기",
+  add_to_cart: "장바구니에 담기",
+  book_service: "예약하기",
+  call_or_chat: "전화·메신저로 상담하기",
+  request_quote: "견적 요청하기",
+  request_proposal: "사업 제안 문의하기",
+  contact_sales: "도입 상담 문의하기",
+  download_company_profile: "회사소개서 받아보기",
+  view_case_study: "수행 사례 확인하기",
+  apply_program: "프로그램 신청하기",
+  register_jobseeker: "구직자로 등록하기",
+  register_employer: "기업회원으로 등록하기",
+  start_trial: "무료로 체험해보기",
+  create_account: "회원가입하기",
+  subscribe_content: "뉴스레터 구독하기",
+  partner_inquiry: "제휴·협력 문의하기",
+  donate: "후원하기",
+};
+
+export type BuyingCycle = CustomerJourney["buyingCycle"];
+export const BUYING_CYCLE_LABEL: Record<BuyingCycle, string> = {
+  instant: "그 자리에서 바로 결정",
+  short: "며칠~몇 주 안에 결정",
+  long: "몇 달에 걸쳐 검토 후 결정",
+  procurement: "공공 조달 절차를 거쳐 결정",
+  unknown: "결정 기간 확인 필요",
+};
+
 export type AudienceRole =
   | "economicBuyer" | "decisionMaker" | "influencer"
   | "endUser" | "beneficiary" | "supplierPartner";

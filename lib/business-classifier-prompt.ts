@@ -48,5 +48,8 @@ export function buildClassifierPrompt(signals: ParsedSiteSignals, input: Diagnos
     "- 근거가 부족하면 primaryMarketMotion을 unknown으로 두고 confidence를 낮추세요.",
     "- B2C를 기본값으로 가정하지 마세요.",
     "- 사회적기업·예비사회적기업·사회적협동조합·소셜벤처 인증이 확인되면 social_enterprise를 우선 검토하고, 공공 판로(B2G)와 시장 매출(B2C/B2B) 여정을 분리하세요.",
+    "- claim·evidenceText·reason 필드는 마케팅을 잘 모르는 60대 기업 대표가 읽어도 이해할 자연스러운 한국어 문장으로 쓰세요.",
+    "- claim·evidenceText·reason에 'primary', 'hybrid', 'journey' 같은 영어 전문용어를 그대로 쓰지 마세요. B2C·B2B·B2G처럼 이미 굳어진 업계 약어는 써도 됩니다.",
+    "- reason은 '~일 수도 있습니다' 형태의 완결된 한 문장으로 쓰고, 왜 그렇게 볼 수 있는지 이유를 함께 담으세요.",
   ].join("\n");
 }

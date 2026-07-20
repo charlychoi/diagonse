@@ -3,7 +3,7 @@ import { classifyBusiness } from "./business-classifier";
 import { computeAdaptiveScores } from "./scoring/adaptive-scores";
 import { validateConsistency } from "./diagnosis-consistency";
 import { runPrevisitQualityPass } from "./previsit-quality";
-import { buildBriefMarkdown, buildEasyMarkdown } from "./previsit-markdown";
+import { buildBriefMarkdown, buildSummaryMarkdown } from "./previsit-markdown";
 import { crawlAndParse } from "./crawl";
 import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
@@ -817,18 +817,24 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     methodology,
   };
 
-  // v4.1: AI 품질 패스(쉬운 요약·브리핑·자기검증) — 단일 호출, 실패 시 규칙 기반 폴백
-  const previsitQuality = await runPrevisitQualityPass(
-    { ...prePartial, previsitQuality: undefined as never, briefMarkdown: "", easyMarkdown: "" },
-  );
+  // v4.2: 상세 보고서(markdownReport)를 먼저 완성한 뒤, 그 원문을 근거로
+  // AI 품질 패스(사전진단 요약·방문 전 브리핑·자기검증)를 실행한다.
+  // — "요약"이 상세 보고서와 다른 이야기를 하는 핀트 어긋남을 막기 위한 순서.
+  const withPlaceholders = {
+    ...prePartial,
+    previsitQuality: undefined as never,
+    briefMarkdown: "",
+    summaryMarkdown: "",
+  };
+  const markdownReport = buildMarkdownReport(withPlaceholders as Omit<DiagnosisResult, "markdownReport">);
+
+  const previsitQuality = await runPrevisitQualityPass(markdownReport, prePartial);
   const partial: Omit<DiagnosisResult, "markdownReport"> = {
     ...prePartial,
     previsitQuality,
-    briefMarkdown: buildBriefMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", easyMarkdown: "" }, previsitQuality),
-    easyMarkdown: buildEasyMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", easyMarkdown: "" }, previsitQuality),
+    briefMarkdown: buildBriefMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", summaryMarkdown: "" }, previsitQuality),
+    summaryMarkdown: buildSummaryMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", summaryMarkdown: "" }, previsitQuality),
   };
-
-  const markdownReport = buildMarkdownReport(partial as DiagnosisResult);
 
   return { ...partial, markdownReport };
 }

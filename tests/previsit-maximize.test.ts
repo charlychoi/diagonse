@@ -6,7 +6,7 @@ import { computeAdaptiveScores } from "../lib/scoring/adaptive-scores";
 import { evaluateConversion } from "../lib/conversion-diagnosis";
 import { adaptKeywordStrategyForProfile } from "../lib/ai-strategy";
 import { runPrevisitQualityPass } from "../lib/previsit-quality";
-import { buildBriefMarkdown, buildEasyMarkdown } from "../lib/previsit-markdown";
+import { buildBriefMarkdown, buildSummaryMarkdown } from "../lib/previsit-markdown";
 import { computeCoreReadiness } from "../lib/scoring/common-score";
 import type { ParsedSiteSignals } from "../lib/crawl";
 import type { DiagnosisResult } from "../lib/types";
@@ -84,33 +84,54 @@ function fakeResult(): Omit<DiagnosisResult, "markdownReport"> {
     conversion: evaluateConversion(s, profile), adReadiness: {} as never, servicePages: {} as never,
     competitorComparison: {} as never, aiPrecheck: { enabled: false, provider: "none", model: null, usedWebSearch: false, summary: "", priorities: [], messaging: null, competitorCandidates: [], googlePresence: null, citations: [] },
     businessProfile: profile, adaptiveScores, consistencyWarnings: [],
-    previsitQuality: undefined as never, briefMarkdown: "", easyMarkdown: "",
+    previsitQuality: undefined as never, briefMarkdown: "", summaryMarkdown: "",
     methodology: "",
   };
 }
 
-describe("v4.1 AI 품질 패스", () => {
-  it("AI JSON을 파싱해 쉬운 요약·브리핑·자기검증 생성", async () => {
-    const aiCall = (async () => ({ provider: "openai", model: "gpt-5.6", citations: [], output: JSON.stringify({
-      easySummary: { headline: "손님이 가게를 찾기 어려운 상태입니다.", whatWeChecked: "검색과 문의 경로를 봤습니다.", topRisks: [{ title: "검색에 잘 안 나옴", whyPlain: "간판 없는 가게와 같습니다.", todo: "제목을 고치세요." }], quickWinsPlain: ["제목 정리"] },
-      previsitBrief: { companySnapshot: "사회적기업 스냅샷", channelSnapshot: ["홈페이지만 운영"], expectedPainPoints: [{ point: "검색 미노출", evidence: "robots 차단" }], meetingQuestions: ["매출 구성은?", "담당자는?"], talkingPoints: ["공공판로 강화"] },
-      qualityFlags: [{ code: "OK", message: "무리한 단정 없음" }],
-    }) })) as never;
-    const q = await runPrevisitQualityPass(fakeResult(), { aiCall, aiAvailable: true });
+const FAKE_REPORT_MD = `## 1. 비즈니스 모델 판별\n\n- 주 모델: 사회적기업\n\n## 4. 공통 온라인 기반 — 서술형\n\nOG 태그가 없습니다.\n`;
+
+describe("v4.2 AI 품질 패스 (상세 보고서 원문 grounding)", () => {
+  it("AI JSON을 파싱해 요약·브리핑·자기검증 생성", async () => {
+    let capturedPrompt = "";
+    const aiCall = (async (prompt: string) => {
+      capturedPrompt = prompt;
+      return { provider: "openai", model: "gpt-5.6", citations: [], output: JSON.stringify({
+        summary: { headline: "손님이 가게를 찾기 어려운 상태입니다.", whatWeChecked: "검색과 문의 경로를 봤습니다.", topRisks: [{ title: "검색에 잘 안 나옴", whyPlain: "간판 없는 가게와 같습니다.", todo: "제목을 고치세요." }], quickWinsPlain: ["OG 태그 추가"] },
+        previsitBrief: { companySnapshot: "사회적기업 스냅샷", channelSnapshot: ["홈페이지만 운영"], expectedPainPoints: [{ point: "검색 미노출", evidence: "robots 차단" }], meetingQuestions: ["매출 구성은?", "담당자는?"], talkingPoints: ["공공판로 강화"] },
+        qualityFlags: [{ code: "OK", message: "무리한 단정 없음" }],
+      }) };
+    }) as never;
+    const q = await runPrevisitQualityPass(FAKE_REPORT_MD, fakeResult(), { aiCall, aiAvailable: true });
     assert.equal(q.source, "ai");
-    assert.equal(q.easySummary.topRisks.length, 1);
+    assert.equal(q.summary.topRisks.length, 1);
+    // 실제 상세 보고서 원문이 프롬프트에 그대로 포함되어야 함(핀트 어긋남 방지)
+    assert.ok(capturedPrompt.includes("주 모델: 사회적기업"));
+    assert.ok(capturedPrompt.includes("OG 태그가 없습니다"));
     const brief = buildBriefMarkdown(fakeResult(), q);
     assert.ok(brief.includes("방문 전 브리핑 팩") && brief.includes("매출 구성은?"));
-    const easy = buildEasyMarkdown(fakeResult(), q);
-    assert.ok(easy.includes("손님이 가게를 찾기 어려운") && easy.includes("점수 요약"));
+    const summary = buildSummaryMarkdown(fakeResult(), q);
+    assert.ok(summary.includes("사전진단 요약") && summary.includes("손님이 가게를 찾기 어려운") && summary.includes("점수 요약"));
+    assert.ok(!summary.includes("쉬운 보고서"));
+  });
+
+  it("실제 quickWins 제목만 anchorFacts로 전달되어 지어낸 항목을 막음", async () => {
+    let capturedPrompt = "";
+    const aiCall = (async (prompt: string) => { capturedPrompt = prompt; return { provider: "openai", model: "gpt-5.6", citations: [], output: JSON.stringify({
+      summary: { headline: "h", whatWeChecked: "w", topRisks: [{ title: "t", whyPlain: "w", todo: "t" }], quickWinsPlain: ["OG 태그 추가"] },
+      previsitBrief: { companySnapshot: "c", channelSnapshot: [], expectedPainPoints: [], meetingQuestions: ["q1","q2","q3","q4","q5"], talkingPoints: [] },
+      qualityFlags: [],
+    }) }; }) as never;
+    await runPrevisitQualityPass(FAKE_REPORT_MD, fakeResult(), { aiCall, aiAvailable: true });
+    assert.ok(capturedPrompt.includes("OG 태그 추가"));
   });
 
   it("AI 실패 시 규칙 기반 폴백 (항상 결과 보장)", async () => {
     const bad = (async () => ({ provider: "openai", model: "gpt-5.6", citations: [], output: "not json" })) as never;
-    const q = await runPrevisitQualityPass(fakeResult(), { aiCall: bad, aiAvailable: true });
+    const q = await runPrevisitQualityPass(FAKE_REPORT_MD, fakeResult(), { aiCall: bad, aiAvailable: true });
     assert.equal(q.source, "fallback");
     assert.ok(q.previsitBrief.meetingQuestions.length >= 5);
-    const q2 = await runPrevisitQualityPass(fakeResult(), { aiAvailable: false });
+    const q2 = await runPrevisitQualityPass(FAKE_REPORT_MD, fakeResult(), { aiAvailable: false });
     assert.equal(q2.source, "fallback");
   });
 });

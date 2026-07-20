@@ -1,8 +1,10 @@
 /**
- * v4.1 — 방문 전 브리핑 팩 · 쉬운 설명 보고서 Markdown 생성
- * (PDF는 기존 openPrintPdf(markdown) 경로 재사용)
+ * v4.2 — 방문 전 브리핑 팩 · 사전진단 요약 Markdown 생성
+ * (사전진단 "상세 보고서"는 별도 생성하지 않고 기존 markdownReport를 그대로 사용한다)
+ * PDF는 기존 openPrintPdf(markdown) 경로 재사용.
  */
 import type { PrevisitQualityReport } from "./previsit-quality";
+import { qualityFlagLabel } from "./previsit-quality";
 import type { DiagnosisResult } from "./types";
 import { MARKET_MOTION_LABEL } from "./business-profile-types";
 
@@ -15,14 +17,14 @@ export function buildBriefMarkdown(
   const lines: string[] = [
     `# 방문 전 브리핑 팩 — ${result.input.company || result.siteTitle || ""}`,
     ``,
-    `> ${date} · 사전진단 기반 자동 생성${q.source === "ai" ? ` (AI: ${q.model})` : " (규칙 기반)"} · 컨설턴트 전용`,
+    `> ${date} · 사전진단 상세 보고서 기반 자동 생성${q.source === "ai" ? ` (AI: ${q.model})` : " (규칙 기반)"} · 컨설턴트 전용`,
     ``,
     `## 1. 기업 스냅샷`,
     ``,
     b.companySnapshot,
     ``,
-    `- 비즈니스 모델: **${MARKET_MOTION_LABEL[result.businessProfile.primaryMarketMotion]}**${result.businessProfile.secondaryMarketMotions.length ? ` (+ ${result.businessProfile.secondaryMarketMotions.map((m) => MARKET_MOTION_LABEL[m]).join(", ")})` : ""}`,
-    `- 분류 신뢰도: ${result.businessProfile.confidenceLabel === "high" ? "높음" : result.businessProfile.confidenceLabel === "medium" ? "중간" : "낮음 — 미팅에서 유형 확인 필요"}`,
+    `- 비즈니스 성격: **${MARKET_MOTION_LABEL[result.businessProfile.primaryMarketMotion]}**${result.businessProfile.secondaryMarketMotions.length ? ` (+ ${result.businessProfile.secondaryMarketMotions.map((m) => MARKET_MOTION_LABEL[m]).join(", ")})` : ""}`,
+    `- 판별 확신도: ${result.businessProfile.confidenceLabel === "high" ? "높음" : result.businessProfile.confidenceLabel === "medium" ? "중간" : "낮음 — 미팅에서 유형 확인 필요"}`,
     ``,
     `## 2. 채널 현황`,
     ``,
@@ -42,25 +44,28 @@ export function buildBriefMarkdown(
     ``,
     ...b.talkingPoints.map((t) => `- ${t}`),
   ];
-  if (q.qualityFlags.some((f) => f.code !== "OK")) {
-    lines.push(``, `## 6. 진단 유의사항 (AI 자기검증)`, ``);
-    q.qualityFlags.filter((f) => f.code !== "OK").forEach((f) => lines.push(`- [${f.code}] ${f.message}`));
+  const notableFlags = q.qualityFlags.filter((f) => f.code !== "OK");
+  if (notableFlags.length) {
+    lines.push(``, `## 6. 진단 유의사항`, ``);
+    notableFlags.forEach((f) => lines.push(`- **${qualityFlagLabel(f.code)}:** ${f.message}`));
   }
   return lines.join("\n");
 }
 
-export function buildEasyMarkdown(
+export function buildSummaryMarkdown(
   result: Omit<DiagnosisResult, "markdownReport">,
   q: PrevisitQualityReport,
 ): string {
-  const e = q.easySummary;
+  const e = q.summary;
   const a = result.adaptiveScores;
   const scoreLine = (label: string, score: number | null) =>
     `| ${label} | ${score === null ? "점수 대신 설명으로 안내" : `${score}점 / 100점`} |`;
   return [
-    `# 우리 회사 온라인 상태, 쉽게 보는 진단 결과`,
+    `# 사전진단 요약`,
     ``,
     `**${result.input.company || result.siteTitle || ""}** · ${new Date(result.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}`,
+    ``,
+    `> 이 문서는 「사전진단 상세 보고서」의 내용을 쉬운 말로 정리한 요약입니다. 자세한 근거와 항목별 점검표는 상세 보고서를 확인하세요.`,
     ``,
     `## 한눈에 보는 결론`,
     ``,

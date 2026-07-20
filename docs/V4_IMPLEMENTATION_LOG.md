@@ -28,9 +28,27 @@
 
 - **social_enterprise 프로필 신설**: 분류(휴리스틱 최우선 + AI 프롬프트 규칙), 여정 템플릿(공공·기관 판로), 채점 5+1항목(인증/임팩트/공공구매/기관경로/시장매출 + 지원사업 균형 manual), 전화 N/A, 사회적기업·공공구매·ESG 키워드 의도
 - **AI 품질 패스(단일 호출)**: 쉬운 용어 요약 + 방문 전 브리핑 팩(페인포인트·미팅 질문 8~10) + 진단 자기검증(qualityFlags). 실패·미사용 시 규칙 기반 폴백 보장
-- **산출물**: briefMarkdown / easyMarkdown — UI에서 .md 다운로드 + 기존 openPrintPdf로 PDF 저장
+- **산출물**: briefMarkdown(방문 전 브리핑) / summaryMarkdown(사전진단 요약) — UI에서 .md 다운로드 + 기존 openPrintPdf로 PDF 저장
 - **실측 강화**: /robots.txt·/sitemap.xml 실제 fetch — Disallow:/ 전체 차단은 fail(최우선 조치), 확인 실패는 not_observed(감점 없음)
 - 테스트 79/79 (v4 72 + v4.1 7)
 
 ### 보류(후속)
 - PageSpeed Insights API 연동(키 필요), 경쟁사 direct/alternative/benchmark 구분, v3 보고서 완전 강등
+
+## v4.2 진단 UX·보고서 품질 개선 (feature/previsit-maximize 후속)
+
+- **진행률 표시**: 진단 실행 중 단계별 라벨(홈페이지 수집→AI 분류→채점→경쟁사/키워드 AI→AI 심층전략→요약/브리핑 작성)과
+  경과 시간·예상 소요 시간(약 1~3분)을 보여주는 클라이언트 진행률 바 추가. 서버가 실제 진행률을 보내지 않으므로
+  경과 시간 기반 추정치이며, 응답 도착 시 즉시 100%로 종료.
+- **요약/상세 보고서 재구성 (핵심 수정)**: "쉬운 보고서"라는 별도 AI 창작물을 만들던 방식을 폐기.
+  파이프라인 순서를 "상세 보고서(markdownReport) 완성 → 그 원문을 AI에게 그대로 제공 → 쉬운 말로 요약"으로
+  바꿔 상세 보고서와 요약이 서로 다른 이야기를 하던 핀트 어긋남을 근본적으로 제거. 산출물 이름도
+  "사전진단 요약"(구 easyMarkdown)·"사전진단 상세 보고서"(기존 전체 markdownReport, 이름만 명확화)로 정리.
+  다운로드 버튼도 상세 보고서 / 요약 / 방문 전 브리핑 3그룹으로 재배치.
+- **쉬운 용어화**: v4 보고서의 CustomerJourney.objective·buyingCycle raw enum(예: book_service, short)이
+  그대로 노출되던 버그를 CONVERSION_GOAL_LABEL·BUYING_CYCLE_LABEL 한국어 매핑으로 수정.
+  "대안 가설: 모델(이유)" 형식을 사람이 읽는 문장 중심으로 재구성하고, 분류 프롬프트에 영어 전문용어
+  (primary, hybrid 등) 금지 규칙을 추가. 신뢰도 표기를 소수점(0.20)에서 %로 통일, "신뢰도"→"판별 확신도" 용어 통일.
+- **셀프 테스트 강화**: tests/e2e-pipeline.test.ts 신설 — runDiagnosis() 전체를 mocked fetch로 종단 실행해
+  raw enum 유출·구 용어("대안 가설:", "쉬운 보고서", "목표 전환:", 소수점 신뢰도) 재발을 회귀 테스트로 고정.
+  전체 85/85 테스트 통과, `next build` 통과.
