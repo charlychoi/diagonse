@@ -49,6 +49,9 @@ function formatElapsed(sec: number): string {
   return m > 0 ? `${m}분 ${String(s).padStart(2, "0")}초` : `${s}초`;
 }
 
+type DocKind = "full" | "summary" | "brief";
+type DocFormat = "md" | "html" | "pdf";
+
 type AxisScore = {
   key: string;
   score: number;
@@ -221,6 +224,8 @@ export function DiagnoseApp() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnoseOk | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [docKind, setDocKind] = useState<DocKind>("full");
+  const [docFormat, setDocFormat] = useState<DocFormat>("md");
 
   useEffect(() => {
     return () => {
@@ -306,51 +311,51 @@ export function DiagnoseApp() {
     }
   }
 
-  function downloadMd() {
-    if (!result) return;
-    downloadBlob(result.markdown, `${baseName}_상세보고서.md`, "text/markdown;charset=utf-8");
-    setExportMsg(`사전진단 상세 보고서 저장: ${baseName}_상세보고서.md`);
+  /** v4.3: 다운로드 UI를 "문서 선택 + 형식 선택 + 다운로드" 리스트박스 1개로 통합 */
+  const DOC_KIND_OPTIONS: { value: DocKind; label: string; fileLabel: string; humanLabel: string }[] = [
+    { value: "full", label: "📄 사전진단 상세 보고서 (전체 원문)", fileLabel: "상세보고서", humanLabel: "사전진단 상세 보고서" },
+    { value: "summary", label: "📝 사전진단 요약 (상세 보고서를 쉬운 말로)", fileLabel: "사전진단요약", humanLabel: "사전진단 요약" },
+    { value: "brief", label: "🧭 방문 전 브리핑 (컨설턴트용)", fileLabel: "방문전브리핑", humanLabel: "방문 전 브리핑" },
+  ];
+  const DOC_FORMAT_OPTIONS: { value: DocFormat; label: string }[] = [
+    { value: "md", label: "Markdown (.md)" },
+    { value: "html", label: "HTML (.html)" },
+    { value: "pdf", label: "PDF (인쇄 저장)" },
+  ];
+
+  function docMarkdown(kind: DocKind): string | null {
+    if (!result) return null;
+    if (kind === "full") return result.markdown;
+    if (kind === "summary") return result.summaryMarkdown || null;
+    return result.briefMarkdown || null;
   }
 
-  function downloadDoc(kind: "brief" | "summary", format: "md" | "pdf") {
+  async function handleDownload() {
     if (!result) return;
-    const md = kind === "brief" ? result.briefMarkdown : result.summaryMarkdown;
-    if (!md) { setExportMsg("이 결과에는 해당 문서가 없습니다. 다시 진단해 주세요."); return; }
-    const label = kind === "brief" ? "방문전브리핑" : "사전진단요약";
-    const humanLabel = kind === "brief" ? "방문 전 브리핑" : "사전진단 요약";
-    if (format === "md") {
-      downloadBlob(md, `${baseName}_${label}.md`, "text/markdown;charset=utf-8");
-      setExportMsg(`${humanLabel} 저장: ${baseName}_${label}.md`);
+    const opt = DOC_KIND_OPTIONS.find((o) => o.value === docKind)!;
+    const md = docMarkdown(docKind);
+    if (!md) {
+      setExportMsg("이 결과에는 해당 문서가 없습니다. 다시 진단해 주세요.");
+      return;
+    }
+    if (docFormat === "md") {
+      downloadBlob(md, `${baseName}_${opt.fileLabel}.md`, "text/markdown;charset=utf-8");
+      setExportMsg(`${opt.humanLabel} 저장: ${baseName}_${opt.fileLabel}.md`);
+    } else if (docFormat === "html") {
+      try {
+        const html = await buildStandaloneHtml(md, { company: result.input.company });
+        downloadBlob(html, `${baseName}_${opt.fileLabel}.html`, "text/html;charset=utf-8");
+        setExportMsg(`${opt.humanLabel} 저장: ${baseName}_${opt.fileLabel}.html`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "HTML 내보내기 실패");
+      }
     } else {
-      void openPrintPdf(md, { company: result.input.company }).then(
-        () => setExportMsg("인쇄 창이 열립니다. «PDF로 저장»을 선택하세요."),
-        (err) => setError(err instanceof Error ? err.message : "PDF 내보내기 실패"),
-      );
-    }
-  }
-
-  async function downloadHtml() {
-    if (!result) return;
-    try {
-      const html = await buildStandaloneHtml(result.markdown, {
-        company: result.input.company,
-      });
-      downloadBlob(html, `${baseName}_상세보고서.html`, "text/html;charset=utf-8");
-      setExportMsg(`사전진단 상세 보고서 저장: ${baseName}_상세보고서.html`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "HTML 내보내기 실패");
-    }
-  }
-
-  async function downloadPdf() {
-    if (!result) return;
-    try {
-      setExportMsg(
-        "인쇄 창이 열립니다. 프린터를 «PDF로 저장» / «Save as PDF» 로 선택하세요.",
-      );
-      await openPrintPdf(result.markdown, { company: result.input.company });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF 내보내기 실패");
+      try {
+        setExportMsg("인쇄 창이 열립니다. «PDF로 저장» / «Save as PDF» 를 선택하세요.");
+        await openPrintPdf(md, { company: result.input.company });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "PDF 내보내기 실패");
+      }
     }
   }
 
@@ -613,6 +618,43 @@ export function DiagnoseApp() {
 
           <div className="summary-box">{result.summary}</div>
 
+          <div className="doc-picker">
+            <span className="doc-picker-label">📥 보고서 다운로드</span>
+            <select
+              className="doc-picker-select"
+              value={docKind}
+              onChange={(e) => setDocKind(e.target.value as DocKind)}
+              aria-label="다운로드할 문서 선택"
+            >
+              {DOC_KIND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="doc-picker-select doc-picker-format"
+              value={docFormat}
+              onChange={(e) => setDocFormat(e.target.value as DocFormat)}
+              aria-label="파일 형식 선택"
+            >
+              {DOC_FORMAT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="btn btn-export" onClick={() => void handleDownload()}>
+              ⬇ 다운로드
+            </button>
+          </div>
+
+          {exportMsg && (
+            <div className="alert alert-info" role="status">
+              {exportMsg}
+            </div>
+          )}
+
           <nav className="result-tabs" role="tablist">
             {([
               ["summary", "📊 요약·AI전략"],
@@ -656,53 +698,6 @@ export function DiagnoseApp() {
               {result.aiPrecheck.competitorCandidates.length > 0 && (
                 <div className="ai-competitors"><b>AI가 검색한 경쟁사 후보</b>{result.aiPrecheck.competitorCandidates.map((item) => <a key={item.url} href={item.url} target="_blank" rel="noreferrer">{item.name}</a>)}</div>
               )}
-            </div>
-          )}
-
-          <div className="export-bar">
-            <span className="export-label">📄 사전진단 상세 보고서 (전체 원문)</span>
-            <button type="button" className="btn btn-export" onClick={downloadMd}>
-              ⬇ Markdown (.md)
-            </button>
-            <button
-              type="button"
-              className="btn btn-export"
-              onClick={() => void downloadHtml()}
-            >
-              ⬇ HTML (.html)
-            </button>
-            <button
-              type="button"
-              className="btn btn-export"
-              onClick={() => void downloadPdf()}
-            >
-              ⬇ PDF (인쇄 저장)
-            </button>
-          </div>
-
-          <div className="export-bar">
-            <span className="export-label">📝 사전진단 요약 (상세 보고서를 쉬운 말로)</span>
-            <button type="button" className="btn btn-export" onClick={() => downloadDoc("summary", "md")}>
-              ⬇ Markdown (.md)
-            </button>
-            <button type="button" className="btn btn-export" onClick={() => downloadDoc("summary", "pdf")}>
-              ⬇ PDF (인쇄 저장)
-            </button>
-          </div>
-
-          <div className="export-bar">
-            <span className="export-label">🧭 방문 전 브리핑 (컨설턴트용)</span>
-            <button type="button" className="btn btn-export" onClick={() => downloadDoc("brief", "md")}>
-              ⬇ Markdown (.md)
-            </button>
-            <button type="button" className="btn btn-export" onClick={() => downloadDoc("brief", "pdf")}>
-              ⬇ PDF (인쇄 저장)
-            </button>
-          </div>
-
-          {exportMsg && (
-            <div className="alert alert-info" role="status">
-              {exportMsg}
             </div>
           )}
 

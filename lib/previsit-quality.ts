@@ -6,6 +6,16 @@
  * 그 내용을 쉬운 말로 요약·정리하게 한다 — 상세 보고서와 요약이
  * 서로 다른 이야기를 하는 문제(핀트 어긋남)를 근본적으로 막는다.
  *
+ * v4.3: 두 가지 방식으로 그라운딩을 강화했다.
+ *  1) reportExcerpt — v4 핵심 섹션(비즈니스 모델·여정·공통 기반·여정별 점수)은
+ *     절대 잘리지 않도록 통째로 포함하고, 나머지 v3 상세 섹션만 넉넉히 발췌한다.
+ *     (기존에는 원문 전체를 앞에서부터 9000자 자르기만 해서, 여정이 많은
+ *     보고서는 뒷부분 여정 점수·로드맵·AI 전략 섹션이 AI에게 보이지 않았다.)
+ *  2) anchorFacts — 제목만 주던 것을, 실제 취약/주의 체크 목록(제목+근거+조치),
+ *     즉시 실행 항목·로드맵·AI 우선순위(설명 포함), 채널 신호(전화·카카오·폼 등
+ *     실측 개수)까지 구조화된 사실로 제공한다. AI는 이 목록에 있는 항목만
+ *     골라 쉬운 말로 바꿀 수 있고, 목록에 없는 위험·근거를 새로 지어낼 수 없다.
+ *
  * 단일 AI 호출로 2가지를 생성한다(비용·지연 최소화):
  *  1) summary        — 상세 보고서를 그대로 쉬운 말로 옮긴 사전진단 요약
  *  2) previsitBrief   — 컨설턴트 방문 전 브리핑 팩(페인포인트·미팅 질문)
@@ -15,7 +25,7 @@
  */
 import { aiEnabled, callAi } from "./ai-provider";
 import type { DiagnosisResult } from "./types";
-import { MARKET_MOTION_LABEL } from "./business-profile-types";
+import { MARKET_MOTION_LABEL, type AdaptiveCheck } from "./business-profile-types";
 
 export type PrevisitQualityReport = {
   enabled: boolean;
@@ -39,6 +49,7 @@ export type PrevisitQualityReport = {
 };
 
 type AiCallFn = typeof callAi;
+type PartialResult = Omit<DiagnosisResult, "markdownReport" | "previsitQuality" | "briefMarkdown" | "summaryMarkdown">;
 
 const QUALITY_FLAG_LABEL: Record<string, string> = {
   OVERCLAIM: "과장된 표현 주의",
@@ -51,47 +62,107 @@ export function qualityFlagLabel(code: string): string {
   return QUALITY_FLAG_LABEL[code] || code;
 }
 
-/** 상세 보고서 원문에서 AI 요약의 근거로 쓸 앞부분(v4 핵심 섹션)을 추출 */
-function reportExcerpt(markdownReport: string, maxChars = 9000): string {
-  return markdownReport.slice(0, maxChars);
+/**
+ * 상세 보고서 원문에서 AI 요약의 근거로 쓸 텍스트를 만든다.
+ * v4 핵심 섹션(비즈니스 모델 분류·고객 여정·공통 기반·여정별 점수)은
+ * 보고서 맨 앞에 있고 "# 상세 진단 (참고 — 기존 v3 채점)" 구분선 이전까지가
+ * 그 전체다 — 이 부분은 잘라내지 않고 통째로 포함한다.
+ * 그 뒤 v3 상세 섹션(축별 분석·AI 전략·경쟁사 비교·로드맵 등)은 넉넉한
+ * 길이로 발췌한다(구체적 사실은 anchorFacts가 구조화된 형태로 별도 보장).
+ */
+function reportExcerpt(markdownReport: string, maxLegacyChars = 12000): string {
+  const marker = "# 상세 진단 (참고 — 기존 v3 채점)";
+  const idx = markdownReport.indexOf(marker);
+  if (idx === -1) return markdownReport.slice(0, maxLegacyChars + 4000);
+  const v4Part = markdownReport.slice(0, idx);
+  const legacyPart = markdownReport.slice(idx, idx + maxLegacyChars);
+  return `${v4Part}\n\n${legacyPart}`;
 }
 
-/** 원문 grounding을 보완하는 소량의 정밀 데이터(제목만) — AI가 실제 목록과 다른 항목을 지어내는 것을 방지 */
-function anchorFacts(result: Omit<DiagnosisResult, "markdownReport" | "previsitQuality" | "briefMarkdown" | "summaryMarkdown">): string {
+function checksFromCard(card: { checks: AdaptiveCheck[] }, scopeLabel: string) {
+  return card.checks
+    .filter((c) => c.status === "fail" || c.status === "warn")
+    .map((c) => ({
+      scope: scopeLabel,
+      title: c.title,
+      severity: c.status === "fail" ? "취약" : "주의",
+      detail: c.detail,
+      action: c.action,
+    }));
+}
+
+/**
+ * 원문 grounding을 보완하는 정밀 구조화 데이터.
+ * AI가 실제 목록에 없는 위험·근거·항목을 지어내는 것을 막기 위해,
+ * 제목뿐 아니라 근거(detail)·조치(action)·설명(description)까지 그대로 준다.
+ */
+function anchorFacts(result: PartialResult): string {
+  const a = result.adaptiveScores;
+  const failWarnChecks = [
+    checksFromCard(a.coreReadiness, "공통 기반"),
+    ...a.journeyScores.map((j) => checksFromCard(j, j.journeyLabel)),
+  ].flat().slice(0, 24);
+
   return JSON.stringify({
     company: result.input.company || result.siteTitle,
     businessModel: MARKET_MOTION_LABEL[result.businessProfile.primaryMarketMotion],
-    quickWinTitles: result.quickWins.slice(0, 5).map((q) => q.title),
-    roadmapTitles: result.roadmap.slice(0, 6).map((r) => r.title),
-    aiPriorityTitles: result.aiPrecheck.priorities.slice(0, 5).map((p) => p.title),
+    confidenceLabel: result.businessProfile.confidenceLabel,
+    overallGrade: a.grade,
+    provisional: a.provisional,
+    failWarnChecks,
+    quickWins: result.quickWins.slice(0, 6).map((q) => ({
+      title: q.title,
+      description: q.description,
+      impact: q.impact,
+      effort: q.effort,
+    })),
+    roadmap: result.roadmap.slice(0, 8).map((r) => ({
+      phase: r.phase,
+      title: r.title,
+      description: r.description,
+      expectedOutcome: r.expectedOutcome,
+    })),
+    aiPriorities: result.aiPrecheck.priorities.slice(0, 6).map((p) => ({
+      title: p.title,
+      reason: p.reason,
+      action: p.action,
+      impact: p.impact,
+    })),
+    highImpactPriorities: result.highImpactPriorities.slice(0, 6),
+    channelSignals: result.conversion?.paths || null,
   });
 }
 
-function buildPrompt(
-  markdownReport: string,
-  result: Omit<DiagnosisResult, "markdownReport" | "previsitQuality" | "briefMarkdown" | "summaryMarkdown">,
-): string {
+function buildPrompt(markdownReport: string, result: PartialResult): string {
   return [
     "당신은 사회적기업 대상 AX(AI 전환) 마케팅 컨설턴트의 수석 보좌역입니다.",
-    "아래는 이미 완성된 '사전진단 상세 보고서' 원문입니다. 이 보고서에 실제로 적힌 내용만 근거로 사용하세요.",
-    "보고서에 없는 사실을 새로 지어내지 말고, 이 보고서를 그대로 쉬운 말로 옮기는 것이 목표입니다.",
-    "전문용어(SEO, CTA, 전환율, 메타태그, N/A, 신뢰도, 여정 등)는 60대 기업 대표도 이해할 일상 언어로 풀어 쓰세요.",
-    "영어 단어를 한국어 문장에 그대로 섞지 마세요(예: primary, hybrid). B2C·B2B·B2G 같은 굳어진 약어는 괜찮습니다.",
+    "아래는 이미 완성된 '사전진단 상세 보고서' 원문(발췌)과, 그 보고서를 만든 실제 데이터(anchorFacts)입니다.",
+    "이 두 가지에 실제로 있는 내용만 근거로 사용하세요. 보고서나 anchorFacts에 없는 사실·위험·수치를 새로 지어내지 마세요.",
+    "",
+    "매우 중요한 규칙:",
+    "- summary.topRisks와 previsitBrief.expectedPainPoints는 반드시 anchorFacts.failWarnChecks 목록에 있는 항목만 골라 쉬운 말로 바꾸세요. 목록에 없는 위험을 추가하지 마세요.",
+    "- summary.quickWinsPlain은 반드시 anchorFacts.quickWins 목록에 있는 항목만 골라 쉬운 말로 바꾸세요.",
+    "- previsitBrief.talkingPoints는 anchorFacts.aiPriorities 또는 anchorFacts.roadmap 중에서 골라 쉬운 말로 바꾸세요.",
+    "- 각 항목의 '근거(evidence/whyPlain)'는 anchorFacts의 detail·reason·description 필드 내용을 쉬운 말로 옮긴 것이어야 합니다. 근거 없이 판단만 쓰지 마세요.",
+    "",
+    "전문용어(SEO, CTA, 전환율, 메타태그, N/A, 신뢰도, 여정, primary, hybrid 등)는 60대 기업 대표도 이해할 일상 언어로 풀어 쓰세요.",
+    "영어 단어를 한국어 문장에 그대로 섞지 마세요. B2C·B2B·B2G 같은 굳어진 업계 약어는 괜찮습니다.",
     "보고서 내용이 잘못되었거나 과장되어 보이면 qualityFlags에 지적하세요.",
     "",
-    "=== 사전진단 상세 보고서 원문 (발췌) ===",
+    "=== 사전진단 상세 보고서 원문(발췌 — v4 핵심 섹션은 전체 포함) ===",
     reportExcerpt(markdownReport),
     "=== 발췌 끝 ===",
     "",
-    "위 보고서와 반드시 일치해야 하는 실제 항목 목록(제목을 지어내지 말고 아래에서만 고르세요):",
+    "=== anchorFacts (보고서를 만든 실제 데이터 — 이 안에서만 항목을 고르세요) ===",
     anchorFacts(result),
+    "=== anchorFacts 끝 ===",
     "",
     "다음 JSON만 출력하세요(코드블록·설명 금지):",
-    '{"summary":{"headline":"보고서의 핵심 결론을 한 문장으로(쉬운 말)","whatWeChecked":"무엇을 어떻게 진단했는지 2~3문장(쉬운 말)","topRisks":[{"title":"보고서에 나온 위험 제목을 쉬운 말로","whyPlain":"보고서 내용을 근거로 왜 문제인지 1~2문장","todo":"보고서의 개선 방향을 바탕으로 이번 주에 할 수 있는 첫 조치 1문장"}],"quickWinsPlain":["위 quickWinTitles 중에서 골라 쉬운 말로 3~4개"]},',
-    '"previsitBrief":{"companySnapshot":"보고서 내용 기반 기업 한 단락 요약(모델·고객·강점·약점)","channelSnapshot":["보고서에 나온 채널별 현황 한 줄씩 3~5개"],"expectedPainPoints":[{"point":"보고서에 나온 예상 페인포인트","evidence":"보고서의 해당 근거"}],"meetingQuestions":["방문 미팅에서 확인할 질문 8~10개 — 지원사업 의존도, 매출 구성, 운영 인력, 콘텐츠 담당, 실제 문의 경로 포함"],"talkingPoints":["미팅에서 컨설턴트가 강조할 포인트 3~4개(보고서 근거 기반)"]},',
+    '{"summary":{"headline":"보고서의 핵심 결론을 한 문장으로(쉬운 말)","whatWeChecked":"무엇을 어떻게 진단했는지 2~3문장(쉬운 말)","topRisks":[{"title":"failWarnChecks 중에서 고른 항목 제목을 쉬운 말로","whyPlain":"해당 항목의 detail을 근거로 왜 문제인지 1~2문장","todo":"해당 항목의 action을 바탕으로 이번 주에 할 수 있는 첫 조치 1문장"}],"quickWinsPlain":["anchorFacts.quickWins 중에서 골라 쉬운 말로 3~4개"]},',
+    '"previsitBrief":{"companySnapshot":"보고서 내용 기반 기업 한 단락 요약(모델·고객·강점·약점)","channelSnapshot":["anchorFacts.channelSignals와 보고서 내용을 근거로 채널별 현황 한 줄씩 3~5개"],"expectedPainPoints":[{"point":"failWarnChecks 중에서 고른 항목","evidence":"해당 항목의 detail"}],"meetingQuestions":["방문 미팅에서 확인할 질문 8~10개 — 지원사업 의존도, 매출 구성, 운영 인력, 콘텐츠 담당, 실제 문의 경로 포함"],"talkingPoints":["aiPriorities 또는 roadmap 중에서 골라 미팅에서 강조할 포인트 3~4개(근거 기반)"]},',
     '"qualityFlags":[{"code":"OVERCLAIM|WEAK_EVIDENCE|TYPE_MISMATCH|OK","message":"설명"}]}',
     "",
-    "topRisks는 보고서에서 상태가 나쁜 항목 순으로 3~5개만. 모든 문장은 한국어 존댓말.",
+    "topRisks는 failWarnChecks 중 severity가 '취약'인 항목을 우선해 3~5개만. 모든 문장은 한국어 존댓말.",
   ].join("\n");
 }
 
@@ -132,7 +203,7 @@ function parse(raw: string): Omit<PrevisitQualityReport, "enabled" | "source" | 
   } catch { return null; }
 }
 
-function fallback(result: Omit<DiagnosisResult, "markdownReport" | "previsitQuality" | "briefMarkdown" | "summaryMarkdown">): PrevisitQualityReport {
+function fallback(result: PartialResult): PrevisitQualityReport {
   const a = result.adaptiveScores;
   const fails = [a.coreReadiness, ...a.journeyScores]
     .flatMap((c) => c.checks.filter((ch) => ch.status === "fail"))
@@ -167,7 +238,7 @@ function fallback(result: Omit<DiagnosisResult, "markdownReport" | "previsitQual
 
 export async function runPrevisitQualityPass(
   markdownReport: string,
-  result: Omit<DiagnosisResult, "markdownReport" | "previsitQuality" | "briefMarkdown" | "summaryMarkdown">,
+  result: PartialResult,
   options: { aiCall?: AiCallFn; aiAvailable?: boolean; timeoutMs?: number } = {},
 ): Promise<PrevisitQualityReport> {
   const available = options.aiAvailable ?? aiEnabled();

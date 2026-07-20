@@ -108,11 +108,34 @@ describe("v4.2 AI 품질 패스 (상세 보고서 원문 grounding)", () => {
     // 실제 상세 보고서 원문이 프롬프트에 그대로 포함되어야 함(핀트 어긋남 방지)
     assert.ok(capturedPrompt.includes("주 모델: 사회적기업"));
     assert.ok(capturedPrompt.includes("OG 태그가 없습니다"));
+    // anchorFacts에는 실제 취약/주의 체크의 제목뿐 아니라 근거(detail)·조치(action)까지 포함되어야 함
+    // (제목만 주면 AI가 근거를 지어낼 수 있어 상세 보고서와 불일치가 생김 — v4.3 그라운딩 강화)
+    assert.ok(capturedPrompt.includes("canonical 미지정"));
+    assert.ok(capturedPrompt.includes("대표 URL을 canonical로 지정하세요"));
     const brief = buildBriefMarkdown(fakeResult(), q);
     assert.ok(brief.includes("방문 전 브리핑 팩") && brief.includes("매출 구성은?"));
     const summary = buildSummaryMarkdown(fakeResult(), q);
     assert.ok(summary.includes("사전진단 요약") && summary.includes("손님이 가게를 찾기 어려운") && summary.includes("점수 요약"));
     assert.ok(!summary.includes("쉬운 보고서"));
+  });
+
+  it("v4 핵심 섹션은 길어도 잘리지 않고 통째로 전달됨(여정 많은 보고서 대응)", async () => {
+    // 기존 9000자 단순 절단 방식에서는 v4 섹션이 길면(여정 많음) 뒷부분(예: 마지막 여정 점수)이
+    // 잘려 AI가 보지 못했다. v4.3부터는 "# 상세 진단 (참고 — 기존 v3 채점)" 구분선 이전
+    // v4 섹션 전체를 항상 포함해야 한다.
+    const longJourneySection = "여정 상세 ".repeat(2000); // 약 10000자 이상 — 옛 9000자 한도를 넘김
+    const bigReportMd = `## 1. 비즈니스 모델 판별\n\n- 주 모델: 사회적기업\n\n${longJourneySection}\n\n마지막-여정-표식-END\n\n# 상세 진단 (참고 — 기존 v3 채점)\n\n레거시 섹션 내용\n`;
+    let capturedPrompt = "";
+    const aiCall = (async (prompt: string) => {
+      capturedPrompt = prompt;
+      return { provider: "openai", model: "gpt-5.6", citations: [], output: JSON.stringify({
+        summary: { headline: "h", whatWeChecked: "w", topRisks: [{ title: "t", whyPlain: "w", todo: "t" }], quickWinsPlain: [] },
+        previsitBrief: { companySnapshot: "c", channelSnapshot: [], expectedPainPoints: [], meetingQuestions: ["q1","q2","q3","q4","q5"], talkingPoints: [] },
+        qualityFlags: [],
+      }) };
+    }) as never;
+    await runPrevisitQualityPass(bigReportMd, fakeResult(), { aiCall, aiAvailable: true });
+    assert.ok(capturedPrompt.includes("마지막-여정-표식-END"), "v4 섹션 끝부분이 잘리면 안 됨(여정이 많은 보고서 대응)");
   });
 
   it("실제 quickWins 제목만 anchorFacts로 전달되어 지어낸 항목을 막음", async () => {

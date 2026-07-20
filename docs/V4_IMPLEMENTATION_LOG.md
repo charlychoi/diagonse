@@ -52,3 +52,27 @@
 - **셀프 테스트 강화**: tests/e2e-pipeline.test.ts 신설 — runDiagnosis() 전체를 mocked fetch로 종단 실행해
   raw enum 유출·구 용어("대안 가설:", "쉬운 보고서", "목표 전환:", 소수점 신뢰도) 재발을 회귀 테스트로 고정.
   전체 85/85 테스트 통과, `next build` 통과.
+
+## v4.3 요약/브리핑 그라운딩 강화 + 다운로드 UI 리스트박스화 (feature/previsit-maximize 후속)
+
+사용자 피드백: v4.2 이후에도 사전진단 요약·방문 전 브리핑 내용이 상세 보고서와 일치하지 않는 사례가 남아있음을 확인.
+
+- **그라운딩 근본 수정(lib/previsit-quality.ts)**:
+  - `reportExcerpt`: 기존에는 markdownReport 전체(v4 섹션+v3 레거시)를 앞에서부터 9000자로 단순 절단 —
+    여정이 많은 보고서는 v4 섹션(여정별 점수 등)의 뒷부분이 잘려 AI가 보지 못하는 경우가 있었음.
+    수정 후에는 "# 상세 진단 (참고 — 기존 v3 채점)" 구분선 이전 v4 핵심 섹션(비즈니스 모델 분류·고객 여정·
+    공통 기반·여정별 점수)은 **길이에 관계없이 항상 전체 포함**하고, 그 뒤 v3 레거시 섹션만 12000자로 발췌.
+  - `anchorFacts`: 기존에는 quickWins·roadmap·aiPrecheck의 제목(title)만 제공해 AI가 근거 문장을 스스로
+    지어낼 여지가 있었음. 수정 후에는 실제 취약/주의 체크 전체(제목+근거detail+조치action, 공통기반·여정별
+    모두 포함) · quickWins(설명 포함) · roadmap(설명·기대성과 포함) · AI 우선순위(이유·조치 포함) ·
+    채널 신호 실측치(전화/카카오/폼 등 개수)를 구조화된 JSON으로 제공.
+  - 프롬프트에 "topRisks·expectedPainPoints는 반드시 anchorFacts.failWarnChecks 목록에서만 선택,
+    quickWinsPlain은 anchorFacts.quickWins에서만 선택, 근거 문장은 anchorFacts의 detail/reason/description을
+    쉬운 말로 옮긴 것이어야 함" 규칙을 명시해 AI가 목록 밖 항목·근거를 지어내는 것을 원천 차단.
+  - 회귀 테스트 추가: 여정이 많아 v4 섹션이 9000자를 넘는 가짜 보고서로 "v4 섹션 끝부분이 잘리지 않는지"
+    검증, anchorFacts에 detail/action이 실제로 포함되는지 검증.
+- **다운로드 UI 리스트박스화(app/DiagnoseApp.tsx)**: 상세 보고서/요약/브리핑 × md/html/pdf 총 9개 버튼을
+  3줄로 나열하던 방식을 "문서 선택 드롭다운 + 형식 선택 드롭다운 + 다운로드 버튼 1개"의 단일 컴팩트 UI로
+  통합(`.doc-picker`). 위치도 결과 탭("📊 요약·AI전략" 등) 아래에서 **탭 위, summary-box 바로 아래**로 이동해
+  탭을 클릭하기 전에 문서를 먼저 선택할 수 있게 함. HTML 내보내기도 요약·브리핑 문서까지 확장.
+- 전체 86/86 테스트 통과(신규 1건 추가), `tsc --noEmit` 클린, `next build` 통과.
