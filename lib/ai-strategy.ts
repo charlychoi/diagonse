@@ -450,3 +450,61 @@ export function buildFaqJsonLd(faqs: FaqItem[]): string {
     2,
   );
 }
+
+
+/**
+ * v4(§14): 유형별 검색 의도 보정.
+ * B2B/B2G 프로필에서는 모든 서비스에 비용·추천·후기·신청 방법을 자동 결합하지 않고
+ * 문제·구매자·용역·사례형 키워드로 교체한다.
+ */
+export function adaptKeywordStrategyForProfile(
+  strategy: KeywordStrategy,
+  profile?: import("./business-profile-types").BusinessProfile,
+): KeywordStrategy {
+  if (!profile) return strategy;
+  const primary = profile.primaryMarketMotion;
+  const orgBuyer = ["b2b_service", "b2g", "b2b2c", "b2g2c"].includes(primary);
+  if (primary === "social_enterprise") {
+    const service = strategy.primaryService;
+    return {
+      ...strategy,
+      tier1: [
+        { keyword: service, intent: "핵심 제품·서비스 검색" },
+        { keyword: `사회적기업 ${service}`, intent: "가치소비·ESG 구매 담당자 검색" },
+        { keyword: `${service} 공공구매`, intent: "공공기관 우선구매 담당자 검색" },
+      ],
+      tier2: [
+        { keyword: `${service} 납품 사례`, intent: "기관 구매 검토 단계 검색" },
+        { keyword: `사회적기업 제품 구매`, intent: "착한소비 일반 고객 검색" },
+        ...strategy.tier2,
+      ].slice(0, 8),
+      tier3: [
+        { keyword: `ESG 협력 사회적기업`, intent: "대기업 ESG 파트너 발굴 검색" },
+        ...strategy.tier3,
+      ].slice(0, 3),
+      notes: [...(strategy.notes || []), "v4.1: 사회적기업 프로필 — 공공구매·가치소비·ESG 의도 키워드 반영"],
+    };
+  }
+  if (!orgBuyer) return strategy;
+  const service = strategy.primaryService;
+  const banned = /(비용|추천|후기|신청\s?방법)$/;
+  const keep = (t: { keyword: string; intent: string }) => !banned.test(t.keyword.trim());
+  return {
+    ...strategy,
+    tier1: [
+      { keyword: service, intent: "핵심 서비스·사업 검색" },
+      { keyword: `${service} 사업 운영`, intent: "문제·과제형 — 사업 운영 파트너 탐색" },
+      { keyword: `기관 ${service} 위탁`, intent: "구매자형 — 기관 담당자 위탁 검색" },
+    ],
+    tier2: [
+      { keyword: `${service} 사례`, intent: "사례형 — 수행 실적 확인 검색" },
+      { keyword: `${service} 연구용역`, intent: "용역형 — 공공·연구 발주 검색" },
+      ...strategy.tier2.filter(keep),
+    ].slice(0, 8),
+    tier3: [
+      { keyword: `${service} 협력사`, intent: "파트너형 — 협력 기관 탐색" },
+      ...strategy.tier3.filter(keep),
+    ].slice(0, 3),
+    notes: [...(strategy.notes || []), "v4: B2B/B2G 프로필 — 비용·추천·후기·신청 방법 자동 결합을 제외하고 문제·구매자·사례형 의도로 교체"],
+  };
+}

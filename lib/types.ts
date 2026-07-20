@@ -6,6 +6,8 @@ import type { ScoreReliability } from "./score-reliability";
 import type { SearchMeasureBundle } from "./search-measure";
 import type { SeoPlaybook } from "./seo-playbook";
 import type { KeywordStrategy } from "./ai-strategy";
+import type { AdaptiveDiagnosisScores, BusinessProfile, BusinessProfileOverride } from "./business-profile-types";
+import type { PrevisitQualityReport } from "./previsit-quality";
 
 export type DiagnosisAxisKey =
   | "brand"
@@ -73,7 +75,7 @@ export type MarketingChannel =
   | "email"
   | "other";
 
-export type DiagnosticStatus = "pass" | "warn" | "fail" | "manual";
+export type DiagnosticStatus = "pass" | "warn" | "fail" | "manual" | "not_applicable" | "not_observed";
 export type DiagnosticCheck = {
   id: string;
   title: string;
@@ -177,6 +179,8 @@ export type DiagnosisInput = {
   targetCountry?: string;
   channels?: MarketingChannel[];
   competitors?: string[];
+  /** v4: 자동 분류가 틀렸을 때 사용자 정정 (§17.1) */
+  businessProfileOverride?: BusinessProfileOverride;
 };
 
 export type AxisScore = {
@@ -238,6 +242,18 @@ export type DiagnosisResult = {
   servicePages: ServicePageDiagnosis;
   competitorComparison: CompetitorComparisonReport;
   aiPrecheck: AiPrecheckReport;
+  /** v4: 채점 이전에 판별된 비즈니스 프로필 (§9.1 MUST 3) */
+  businessProfile: BusinessProfile;
+  /** v4: 공통+여정별 적응형 점수 (N/A 분모 제외) */
+  adaptiveScores: AdaptiveDiagnosisScores;
+  /** v4: 일관성 검증 경고 (§20) */
+  consistencyWarnings: { code: string; message: string }[];
+  /** v4.1: AI 품질 패스 — 쉬운 요약·방문 전 브리핑·자기검증 */
+  previsitQuality: PrevisitQualityReport;
+  /** v4.1: 방문 전 브리핑 팩 (Markdown, PDF는 print 경로) */
+  briefMarkdown: string;
+  /** v4.2: 사전진단 상세 보고서(markdownReport)를 쉬운 말로 요약한 Markdown */
+  summaryMarkdown: string;
   methodology: string;
   markdownReport: string;
 };

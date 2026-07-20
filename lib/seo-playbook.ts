@@ -322,7 +322,10 @@ function trustBits(supports: string[], signals: ParsedSiteSignals): string {
 export function buildSeoPlaybook(
   signals: ParsedSiteSignals,
   input: DiagnosisInput,
+  profile?: import("./business-profile-types").BusinessProfile,
 ): SeoPlaybook {
+  // v4(§19.3): B2B/B2G 프로필에서는 B2B를 title 희석 요소로 취급하지 않는다.
+  const orgBuyerProfile = Boolean(profile && ["b2b_service","b2g","b2b2c","b2g2c"].includes(profile.primaryMarketMotion));
   const brand =
     (input.company && input.company.trim()) ||
     hostBrand(signals.hostname, signals.title);
@@ -335,7 +338,7 @@ export function buildSeoPlaybook(
   const h1 = signals.h1s[0]?.trim() || "(H1 없음)";
   const h1Count = signals.h1s.length;
   const h1Bad = isH1Misaligned(signals.h1s[0] ?? null, primaryService, brand);
-  const diluted = titleDiluted(signals.title, primaryService);
+  const diluted = orgBuyerProfile ? false : titleDiluted(signals.title, primaryService);
 
   const brandInTitle = presence(signals.title, brand) === "○";
   const brandInH1 = presence(signals.h1s.join(" "), brand) === "○";

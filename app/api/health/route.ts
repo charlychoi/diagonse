@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { resolveAiConfig, aiEnabled, callAi } from "../../../lib/ai-provider";
+import { isDeploymentExpired, expiryDateLabel, expiryMessage } from "../../../lib/deployment-expiry";
 
 /**
  * GET /api/health          → 서비스 상태 + 현재 AI 프로바이더 라벨
@@ -10,12 +11,18 @@ import { resolveAiConfig, aiEnabled, callAi } from "../../../lib/ai-provider";
  */
 export async function GET(request: Request) {
   const config = resolveAiConfig();
+  const expired = isDeploymentExpired();
   const base = {
     ok: true,
     service: "diagonse",
     mode: "auto-agent-api",
     ai: { enabled: aiEnabled(), provider: config.provider, label: config.label },
     time: new Date().toISOString(),
+    expiry: {
+      expired,
+      expiresAt: expiryDateLabel(),
+      message: expired ? expiryMessage() : null,
+    },
   };
   const url = new URL(request.url);
   const aiParam = url.searchParams.get("ai");

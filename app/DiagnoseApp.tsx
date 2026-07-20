@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -9,6 +9,48 @@ import {
   openPrintPdf,
   reportBaseName,
 } from "../lib/export-report";
+
+/**
+ * v4.1 진단 진행률 시뮬레이터 — 실제 파이프라인 순서(크롤 → AI 분류 →
+ * 채점 → 경쟁사/키워드 AI → AI 심층전략 → AI 품질패스 → 보고서 조립)에
+ * 맞춘 예상 진행 단계. 서버가 진행률을 보내지 않으므로 경과 시간 기반으로
+ * 추정치를 보여준다 — 실제 완료 시점(fetch 응답)에 즉시 100%로 종료된다.
+ */
+const PROGRESS_STAGES: { atSec: number; pct: number; label: string }[] = [
+  { atSec: 0, pct: 2, label: "홈페이지 정보 수집 준비 중" },
+  { atSec: 4, pct: 10, label: "홈페이지·페이지 구조 수집 중" },
+  { atSec: 10, pct: 18, label: "AI가 비즈니스 모델을 분석하는 중" },
+  { atSec: 30, pct: 38, label: "고객 여정별 온라인 준비도 채점 중" },
+  { atSec: 50, pct: 55, label: "경쟁사·검색 키워드 AI 분석 중" },
+  { atSec: 85, pct: 72, label: "AI 심층 전략(우선순위) 수립 중" },
+  { atSec: 125, pct: 85, label: "사전진단 요약·방문 전 브리핑 작성 중" },
+  { atSec: 165, pct: 93, label: "보고서 정리 중" },
+  { atSec: 220, pct: 96, label: "거의 다 됐습니다 — AI 응답 대기 중" },
+];
+const PROGRESS_TOTAL_ESTIMATE = "약 1~3분(경우에 따라 최대 4분)";
+
+function computeProgress(elapsedSec: number): { pct: number; label: string } {
+  for (let i = PROGRESS_STAGES.length - 1; i >= 0; i -= 1) {
+    const cur = PROGRESS_STAGES[i];
+    if (elapsedSec >= cur.atSec) {
+      const next = PROGRESS_STAGES[i + 1];
+      if (!next) return { pct: cur.pct, label: cur.label };
+      const span = next.atSec - cur.atSec;
+      const ratio = span > 0 ? Math.min(1, (elapsedSec - cur.atSec) / span) : 1;
+      return { pct: Math.round(cur.pct + (next.pct - cur.pct) * ratio), label: cur.label };
+    }
+  }
+  return { pct: PROGRESS_STAGES[0].pct, label: PROGRESS_STAGES[0].label };
+}
+
+function formatElapsed(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m}분 ${String(s).padStart(2, "0")}초` : `${s}초`;
+}
+
+type DocKind = "full" | "summary" | "brief";
+type DocFormat = "md" | "html" | "pdf";
 
 type AxisScore = {
   key: string;
@@ -97,7 +139,36 @@ type DiagnoseOk = {
   servicePages?: ServicePages;
   competitorComparison?: CompetitorReport;
   aiPrecheck?: AiPrecheck;
+  businessProfile?: {
+    primaryMarketMotion: string;
+    secondaryMarketMotions: string[];
+    isHybrid: boolean;
+    confidence: number;
+    confidenceLabel: "high" | "medium" | "low";
+    needsConfirmation: boolean;
+    source: string;
+    evidence: { claim: string; evidenceText: string; strength: string }[];
+    audiences: { label: string; roles: string[] }[];
+    journeys: { id: string; label: string; priority: string; objective: string }[];
+  };
+  adaptiveScores?: {
+    coreReadiness: { score: number | null; applicableCount: number; naCount: number };
+    journeyScores: { journeyId: string; journeyLabel: string; priority: string; score: number | null; applicableCount: number; naCount: number; narrative: string }[];
+    overallScore: number | null;
+    grade: string | null;
+    provisional: boolean;
+  };
+  briefMarkdown?: string;
+  summaryMarkdown?: string;
   input: { url: string; company: string; keywords?: string[]; industry?: string; competitors?: string[] };
+};
+
+const MOTION_KO: Record<string, string> = {
+  b2c_service: "개인 대상 서비스(B2C)", b2b_service: "기업 대상 서비스(B2B)", b2g: "공공기관 대상(B2G)",
+  b2b2c: "기업 구매·개인 사용(B2B2C)", b2g2c: "공공 구매·시민 수혜(B2G2C)", d2c_ecommerce: "자체 상품 판매(D2C)",
+  retail_ecommerce: "온라인 판매(쇼핑몰)", saas: "소프트웨어 구독(SaaS)", marketplace: "플랫폼·마켓플레이스",
+  membership_community: "회원·커뮤니티", media_content: "콘텐츠·미디어", nonprofit_public_interest: "비영리·공익",
+  hybrid: "복합 모델", unknown: "분류 보류",
 };
 
 function scoreColor(n: number): string {
@@ -146,9 +217,32 @@ export function DiagnoseApp() {
   const [tab, setTab] = useState<"summary" | "search" | "biz" | "action" | "raw">("summary");
 
   const [loading, setLoading] = useState(false);
+  const [progressPct, setProgressPct] = useState(0);
+  const [progressLabel, setProgressLabel] = useState("");
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnoseOk | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [docKind, setDocKind] = useState<DocKind>("full");
+  const [docFormat, setDocFormat] = useState<DocFormat>("md");
+  const [expiryInfo, setExpiryInfo] = useState<{ expired: boolean; message: string | null } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimer.current) clearInterval(progressTimer.current);
+    };
+  }, []);
+
+  // 체험 배포 만료 가드: 서버에 DEPLOY_EXPIRES_AT이 설정된 경우에만 동작(평소엔 영향 없음)
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((d: { expiry?: { expired?: boolean; message?: string | null } }) => {
+        if (d?.expiry) setExpiryInfo({ expired: !!d.expiry.expired, message: d.expiry.message || null });
+      })
+      .catch(() => {});
+  }, []);
 
   const baseName = useMemo(() => {
     if (!result) return "마케팅_사전진단";
@@ -160,6 +254,11 @@ export function DiagnoseApp() {
     setError(null);
     setExportMsg(null);
     setResult(null);
+
+    if (expiryInfo?.expired) {
+      setError(expiryInfo.message || "이 체험 배포는 종료되었습니다.");
+      return;
+    }
 
     const cleanUrl = url.trim();
     const cleanCompany = company.trim();
@@ -173,6 +272,18 @@ export function DiagnoseApp() {
     }
 
     setLoading(true);
+    setProgressPct(0);
+    setElapsedSec(0);
+    setProgressLabel(PROGRESS_STAGES[0].label);
+    const startedAt = Date.now();
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    progressTimer.current = setInterval(() => {
+      const sec = Math.floor((Date.now() - startedAt) / 1000);
+      setElapsedSec(sec);
+      const { pct, label } = computeProgress(sec);
+      setProgressPct(pct);
+      setProgressLabel(label);
+    }, 500);
     try {
       const body: Record<string, unknown> = {
         url: cleanUrl,
@@ -210,38 +321,57 @@ export function DiagnoseApp() {
           : "네트워크 오류로 진단에 실패했습니다.",
       );
     } finally {
+      if (progressTimer.current) { clearInterval(progressTimer.current); progressTimer.current = null; }
+      setProgressPct(100);
       setLoading(false);
     }
   }
 
-  function downloadMd() {
-    if (!result) return;
-    downloadBlob(result.markdown, `${baseName}.md`, "text/markdown;charset=utf-8");
-    setExportMsg(`Markdown 저장: ${baseName}.md`);
+  /** v4.3: 다운로드 UI를 "문서 선택 + 형식 선택 + 다운로드" 리스트박스 1개로 통합 */
+  const DOC_KIND_OPTIONS: { value: DocKind; label: string; fileLabel: string; humanLabel: string }[] = [
+    { value: "full", label: "📄 사전진단 상세 보고서 (전체 원문)", fileLabel: "상세보고서", humanLabel: "사전진단 상세 보고서" },
+    { value: "summary", label: "📝 사전진단 요약 (상세 보고서를 쉬운 말로)", fileLabel: "사전진단요약", humanLabel: "사전진단 요약" },
+    { value: "brief", label: "🧭 방문 전 브리핑 (컨설턴트용)", fileLabel: "방문전브리핑", humanLabel: "방문 전 브리핑" },
+  ];
+  const DOC_FORMAT_OPTIONS: { value: DocFormat; label: string }[] = [
+    { value: "md", label: "Markdown (.md)" },
+    { value: "html", label: "HTML (.html)" },
+    { value: "pdf", label: "PDF (인쇄 저장)" },
+  ];
+
+  function docMarkdown(kind: DocKind): string | null {
+    if (!result) return null;
+    if (kind === "full") return result.markdown;
+    if (kind === "summary") return result.summaryMarkdown || null;
+    return result.briefMarkdown || null;
   }
 
-  async function downloadHtml() {
+  async function handleDownload() {
     if (!result) return;
-    try {
-      const html = await buildStandaloneHtml(result.markdown, {
-        company: result.input.company,
-      });
-      downloadBlob(html, `${baseName}.html`, "text/html;charset=utf-8");
-      setExportMsg(`HTML 저장: ${baseName}.html`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "HTML 내보내기 실패");
+    const opt = DOC_KIND_OPTIONS.find((o) => o.value === docKind)!;
+    const md = docMarkdown(docKind);
+    if (!md) {
+      setExportMsg("이 결과에는 해당 문서가 없습니다. 다시 진단해 주세요.");
+      return;
     }
-  }
-
-  async function downloadPdf() {
-    if (!result) return;
-    try {
-      setExportMsg(
-        "인쇄 창이 열립니다. 프린터를 «PDF로 저장» / «Save as PDF» 로 선택하세요.",
-      );
-      await openPrintPdf(result.markdown, { company: result.input.company });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "PDF 내보내기 실패");
+    if (docFormat === "md") {
+      downloadBlob(md, `${baseName}_${opt.fileLabel}.md`, "text/markdown;charset=utf-8");
+      setExportMsg(`${opt.humanLabel} 저장: ${baseName}_${opt.fileLabel}.md`);
+    } else if (docFormat === "html") {
+      try {
+        const html = await buildStandaloneHtml(md, { company: result.input.company });
+        downloadBlob(html, `${baseName}_${opt.fileLabel}.html`, "text/html;charset=utf-8");
+        setExportMsg(`${opt.humanLabel} 저장: ${baseName}_${opt.fileLabel}.html`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "HTML 내보내기 실패");
+      }
+    } else {
+      try {
+        setExportMsg("인쇄 창이 열립니다. «PDF로 저장» / «Save as PDF» 를 선택하세요.");
+        await openPrintPdf(md, { company: result.input.company });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "PDF 내보내기 실패");
+      }
     }
   }
 
@@ -276,6 +406,12 @@ export function DiagnoseApp() {
         AI가 홈페이지·검색·전환 신호를 종합 분석한 <strong>광고 전 사전진단</strong>입니다.
         개선 우선순위와 실행안을 제시하며, 실제 광고·매출 성과는 실행 후 데이터로 함께 검증합니다.
       </div>
+
+      {expiryInfo?.expired && (
+        <div className="alert alert-error" role="alert">
+          ⏰ {expiryInfo.message || "이 체험 배포는 종료되었습니다."}
+        </div>
+      )}
 
       <form className="home-card" onSubmit={onSubmit}>
         <h2>진단 정보 입력</h2>
@@ -398,8 +534,8 @@ export function DiagnoseApp() {
         )}
 
         <div className="btn-row">
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "AI 진단 중…" : "AI 사전진단 시작하기"}
+          <button type="submit" className="btn btn-primary" disabled={loading || !!expiryInfo?.expired}>
+            {loading ? "AI 진단 중…" : expiryInfo?.expired ? "체험 기간 종료" : "AI 사전진단 시작하기"}
           </button>
           <button
             type="button"
@@ -420,13 +556,17 @@ export function DiagnoseApp() {
         </div>
 
         {loading && (
-          <div className="loading-bar" aria-hidden>
-            <span />
-          </div>
-        )}
-        {loading && (
-          <div className="alert alert-info" role="status">
-            홈페이지 수집과 AI 웹 검색을 진행 중입니다. 보통 30초~2분 정도 걸립니다.
+          <div className="progress-panel" role="status" aria-live="polite">
+            <div className="loading-bar" aria-hidden>
+              <span style={{ width: `${progressPct}%` }} />
+            </div>
+            <div className="progress-meta">
+              <span className="progress-stage">🔎 {progressLabel} ({progressPct}%)</span>
+              <span className="progress-time">경과 {formatElapsed(elapsedSec)} · 예상 소요 시간 {PROGRESS_TOTAL_ESTIMATE}</span>
+            </div>
+            <p className="progress-note">
+              AI가 홈페이지를 실제로 읽고 웹 검색까지 하며 진단하기 때문에 시간이 걸립니다. 창을 닫지 말고 잠시만 기다려 주세요.
+            </p>
           </div>
         )}
         {error && (
@@ -438,9 +578,51 @@ export function DiagnoseApp() {
 
       {result && (
         <section className="result-section" data-tab={tab} aria-live="polite">
+          {result.businessProfile && (
+            <div className="viz-card" style={{ marginBottom: 16, border: "1px solid #dbe4f0", borderRadius: 12, padding: 16 }}>
+              <h3 className="viz-title">🧭 비즈니스 모델 판별 (v4)</h3>
+              <p className="viz-sub">
+                주 모델: <strong>{MOTION_KO[result.businessProfile.primaryMarketMotion] || result.businessProfile.primaryMarketMotion}</strong>
+                {result.businessProfile.secondaryMarketMotions.length > 0 && (
+                  <> · 보조: {result.businessProfile.secondaryMarketMotions.map((m) => MOTION_KO[m] || m).join(", ")}</>
+                )}
+                {" · 판별 확신도 "}
+                {result.businessProfile.confidenceLabel === "high" ? "높음" : result.businessProfile.confidenceLabel === "medium" ? "중간" : "낮음"}
+                {` (${Math.round(result.businessProfile.confidence * 100)}%)`}
+              </p>
+              {result.businessProfile.needsConfirmation && (
+                <p style={{ color: "#b45309", fontSize: 13, margin: "6px 0" }}>
+                  ⚠️ 자동 분류 확인이 필요합니다. 유형이 다르면 추가 정보 입력의 업종·목표를 채워 다시 진단하세요.
+                </p>
+              )}
+              {result.businessProfile.evidence.slice(0, 3).map((e, i) => (
+                <p key={i} style={{ fontSize: 13, margin: "2px 0", color: "#475569" }}>· {e.claim}</p>
+              ))}
+              {result.adaptiveScores && (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
+                  <div style={{ background: "#f1f5f9", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>공통 온라인 기반</div>
+                    <strong>{result.adaptiveScores.coreReadiness.score ?? "서술형"}</strong>
+                    <span style={{ fontSize: 12, color: "#94a3b8" }}> (제외 {result.adaptiveScores.coreReadiness.naCount})</span>
+                  </div>
+                  {result.adaptiveScores.journeyScores.map((j) => (
+                    <div key={j.journeyId} style={{ background: "#f1f5f9", borderRadius: 8, padding: "8px 12px" }}>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>{j.priority === "primary" ? "★ " : ""}{j.journeyLabel}</div>
+                      <strong>{j.score ?? "서술형"}</strong>
+                      <span style={{ fontSize: 12, color: "#94a3b8" }}> (적용 {j.applicableCount} · 제외 {j.naCount})</span>
+                    </div>
+                  ))}
+                  <div style={{ background: "#eef2ff", borderRadius: 8, padding: "8px 12px" }}>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>v4 종합</div>
+                    <strong>{result.adaptiveScores.overallScore !== null ? `${result.adaptiveScores.overallScore}점 (${result.adaptiveScores.grade})` : result.adaptiveScores.provisional ? "분류 확인 후 확정" : "여정별 참고"}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="score-grid">
             <div className="score-card">
-              <div className="label">AI 진단 점수</div>
+              <div className="label">AI 진단 점수(v3 참고)</div>
               <div className="value">{result.scores.surfaceScore}</div>
               <div className="sub">등급 {result.scores.grade}</div>
             </div>
@@ -457,6 +639,43 @@ export function DiagnoseApp() {
           </div>
 
           <div className="summary-box">{result.summary}</div>
+
+          <div className="doc-picker">
+            <span className="doc-picker-label">📥 보고서 다운로드</span>
+            <select
+              className="doc-picker-select"
+              value={docKind}
+              onChange={(e) => setDocKind(e.target.value as DocKind)}
+              aria-label="다운로드할 문서 선택"
+            >
+              {DOC_KIND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="doc-picker-select doc-picker-format"
+              value={docFormat}
+              onChange={(e) => setDocFormat(e.target.value as DocFormat)}
+              aria-label="파일 형식 선택"
+            >
+              {DOC_FORMAT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="btn btn-export" onClick={() => void handleDownload()}>
+              ⬇ 다운로드
+            </button>
+          </div>
+
+          {exportMsg && (
+            <div className="alert alert-info" role="status">
+              {exportMsg}
+            </div>
+          )}
 
           <nav className="result-tabs" role="tablist">
             {([
@@ -501,33 +720,6 @@ export function DiagnoseApp() {
               {result.aiPrecheck.competitorCandidates.length > 0 && (
                 <div className="ai-competitors"><b>AI가 검색한 경쟁사 후보</b>{result.aiPrecheck.competitorCandidates.map((item) => <a key={item.url} href={item.url} target="_blank" rel="noreferrer">{item.name}</a>)}</div>
               )}
-            </div>
-          )}
-
-          <div className="export-bar">
-            <span className="export-label">보고서 저장</span>
-            <button type="button" className="btn btn-export" onClick={downloadMd}>
-              ⬇ Markdown (.md)
-            </button>
-            <button
-              type="button"
-              className="btn btn-export"
-              onClick={() => void downloadHtml()}
-            >
-              ⬇ HTML (.html)
-            </button>
-            <button
-              type="button"
-              className="btn btn-export"
-              onClick={() => void downloadPdf()}
-            >
-              ⬇ PDF (인쇄 저장)
-            </button>
-          </div>
-
-          {exportMsg && (
-            <div className="alert alert-info" role="status">
-              {exportMsg}
             </div>
           )}
 

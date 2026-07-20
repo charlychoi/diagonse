@@ -1,11 +1,16 @@
 import type { ParsedSiteSignals } from "./crawl";
+import { classifyBusiness } from "./business-classifier";
+import { computeAdaptiveScores } from "./scoring/adaptive-scores";
+import { validateConsistency } from "./diagnosis-consistency";
+import { runPrevisitQualityPass } from "./previsit-quality";
+import { buildBriefMarkdown, buildSummaryMarkdown } from "./previsit-markdown";
 import { crawlAndParse } from "./crawl";
 import { buildMarkdownReport } from "./report";
 import { evaluateNaverSeo } from "./naver-seo-guide";
 import { evaluateLocalSeo } from "./local-seo";
 import { buildSearchMeasureBundle } from "./search-measure";
 import { buildSeoPlaybook } from "./seo-playbook";
-import { buildKeywordStrategy } from "./ai-strategy";
+import { adaptKeywordStrategyForProfile, buildKeywordStrategy } from "./ai-strategy";
 import { evaluateHero } from "./hero-diagnosis";
 import { evaluateConversion } from "./conversion-diagnosis";
 import { evaluateAdReadiness } from "./ad-readiness";
@@ -669,15 +674,22 @@ export function createDiagnosisId(): string {
 export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResult> {
   const signals = await crawlAndParse(input.url);
 
+  // v4(§9.1 MUST 3): 비즈니스 모델 분류는 모든 유형별 채점보다 먼저 실행한다.
+  const businessProfile = await classifyBusiness(signals, input, {
+    override: input.businessProfileOverride,
+  });
+  const conversionCapExempt =
+    businessProfile.primaryMarketMotion !== "b2c_service" &&
+    businessProfile.primaryMarketMotion !== "unknown";
+
   // Keyword strategy first — the product goal is non-brand keyword visibility.
   // Optional Grok API keyword analysis; otherwise heuristic
   // content mining. Derived keywords feed every downstream module when the
   // user did not supply keywords (previously this silently degraded to
   // brand-only evaluation).
-  const keywordStrategy = await buildKeywordStrategy(
-    signals,
-    input,
-    signals.bodyText || "",
+  const keywordStrategy = adaptKeywordStrategyForProfile(
+    await buildKeywordStrategy(signals, input, signals.bodyText || ""),
+    businessProfile,
   );
   const effInput: DiagnosisInput =
     input.keywords && input.keywords.length
@@ -701,6 +713,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
   const { overall: overallScore, reliability } = finalizeSurfaceScore(
     axes,
     signals,
+    { conversionCapExempt },
   );
   const grade = gradeFromScore(overallScore);
   const quickWins = buildQuickWins(axes, signals);
@@ -730,7 +743,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     `이 진단의 목표는 회사 이름만으로 검색될 때가 아니라, '회사명+핵심 서비스' 같은 실제 고객이 검색할 만한 문구로 검색했을 때 공식 홈페이지가 노출되도록, 제목·요약 설명·헤드라인·채널 정보를 정리하는 것입니다. ` +
     `네이버 서치어드바이저 웹마스터 가이드(https://searchadvisor.naver.com/guide) 기준으로 검색로봇 허용 설정, 대표 주소 표시(canonical), 제목·공유 미리보기(OG), 모바일 대응, 구조화 데이터 등을 점검합니다.`;
 
-  const seoPlaybook = buildSeoPlaybook(signals, effInput);
+  const seoPlaybook = buildSeoPlaybook(signals, effInput, businessProfile);
   const searchMeasure = buildSearchMeasureBundle({
     url: signals.url || input.url,
     title: signals.title,
@@ -741,7 +754,7 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
   });
   const naverSeo = evaluateNaverSeo(signals, effInput);
   const hero = evaluateHero(signals, effInput);
-  const conversion = evaluateConversion(signals);
+  const conversion = evaluateConversion(signals, businessProfile);
   const adReadiness = evaluateAdReadiness(signals, hero, conversion);
   const servicePages = evaluateServicePages(signals);
   const aiPrecheck = await evaluateAiPrecheck(signals, effInput, {
@@ -762,7 +775,13 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     evaluateCompetitors(signals, competitorInput, competitorSource, competitorNameHints),
   ]);
 
-  const partial: Omit<DiagnosisResult, "markdownReport"> = {
+  const adaptiveScores = computeAdaptiveScores(signals, businessProfile);
+  const consistencyWarnings = validateConsistency(businessProfile, adaptiveScores, {
+    conversionChecks: conversion.checks,
+    executiveSummary,
+  });
+
+  const prePartial = {
     id,
     createdAt,
     input: {
@@ -791,11 +810,31 @@ export async function runDiagnosis(input: DiagnosisInput): Promise<DiagnosisResu
     servicePages,
     competitorComparison,
     aiPrecheck,
+    businessProfile,
+    adaptiveScores,
+    consistencyWarnings,
     keywordStrategy,
     methodology,
   };
 
-  const markdownReport = buildMarkdownReport(partial as DiagnosisResult);
+  // v4.2: 상세 보고서(markdownReport)를 먼저 완성한 뒤, 그 원문을 근거로
+  // AI 품질 패스(사전진단 요약·방문 전 브리핑·자기검증)를 실행한다.
+  // — "요약"이 상세 보고서와 다른 이야기를 하는 핀트 어긋남을 막기 위한 순서.
+  const withPlaceholders = {
+    ...prePartial,
+    previsitQuality: undefined as never,
+    briefMarkdown: "",
+    summaryMarkdown: "",
+  };
+  const markdownReport = buildMarkdownReport(withPlaceholders as Omit<DiagnosisResult, "markdownReport">);
+
+  const previsitQuality = await runPrevisitQualityPass(markdownReport, prePartial);
+  const partial: Omit<DiagnosisResult, "markdownReport"> = {
+    ...prePartial,
+    previsitQuality,
+    briefMarkdown: buildBriefMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", summaryMarkdown: "" }, previsitQuality),
+    summaryMarkdown: buildSummaryMarkdown({ ...prePartial, previsitQuality, briefMarkdown: "", summaryMarkdown: "" }, previsitQuality),
+  };
 
   return { ...partial, markdownReport };
 }

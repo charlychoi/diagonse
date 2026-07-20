@@ -18,6 +18,8 @@ export type AutoDiagnoseRequest = {
   targetCountry?: string;
   channels?: MarketingChannel[] | string[];
   competitors?: string[] | string;
+  /** v4: 자동 분류 정정 (§17.1) */
+  businessProfileOverride?: DiagnosisInput["businessProfileOverride"];
 };
 
 export type AutoDiagnoseResponse = {
@@ -96,6 +98,15 @@ export type AutoDiagnoseResponse = {
   servicePages: DiagnosisResult["servicePages"];
   competitorComparison: DiagnosisResult["competitorComparison"];
   aiPrecheck: DiagnosisResult["aiPrecheck"];
+  /** v4: 채점 전에 판별된 비즈니스 프로필 */
+  businessProfile: DiagnosisResult["businessProfile"];
+  /** v4: 공통+여정별 적응형 점수 */
+  adaptiveScores: DiagnosisResult["adaptiveScores"];
+  consistencyWarnings: DiagnosisResult["consistencyWarnings"];
+  /** v4.1: 쉬운 요약·브리핑·자기검증 */
+  previsitQuality: DiagnosisResult["previsitQuality"];
+  briefMarkdown: string;
+  summaryMarkdown: string;
   /** AI/heuristic 3-tier keyword strategy (non-brand visibility design) */
   keywordStrategy: DiagnosisResult["keywordStrategy"];
   /** Full markdown report — save as .md file */
@@ -108,10 +119,10 @@ export type AutoDiagnoseResponse = {
 export type AutoDiagnoseError = {
   ok: false;
   error: string;
-  code: "VALIDATION" | "DIAGNOSIS" | "INTERNAL";
+  code: "VALIDATION" | "DIAGNOSIS" | "INTERNAL" | "EXPIRED";
 };
 
-const VERSION = "3.0.0-local";
+const VERSION = "4.0.0";
 
 function parseKeywords(
   raw: string[] | string | undefined,
@@ -203,6 +214,10 @@ export function validateAutoRequest(
         typeof b.targetCountry === "string" ? b.targetCountry.trim() : "대한민국",
       channels: b.channels as string[] | undefined,
       competitors: parseCompetitors(b.competitors),
+      businessProfileOverride:
+        b.businessProfileOverride && typeof b.businessProfileOverride === "object"
+          ? (b.businessProfileOverride as DiagnosisInput["businessProfileOverride"])
+          : undefined,
     },
   };
 }
@@ -220,6 +235,7 @@ export async function runAutoDiagnose(
     targetCountry: req.targetCountry || "대한민국",
     channels: req.channels as MarketingChannel[] | undefined,
     competitors: parseCompetitors(req.competitors),
+    businessProfileOverride: req.businessProfileOverride,
   };
 
   const result = await runDiagnosis(input);
@@ -257,7 +273,14 @@ export async function runAutoDiagnose(
       industry: req.industry,
       competitors: parseCompetitors(req.competitors),
     },
+    businessProfile: result.businessProfile,
+    adaptiveScores: result.adaptiveScores,
+    consistencyWarnings: result.consistencyWarnings,
+    previsitQuality: result.previsitQuality,
+    briefMarkdown: result.briefMarkdown,
+    summaryMarkdown: result.summaryMarkdown,
     scores: {
+      /** @deprecated v4에서는 adaptiveScores를 우선 사용 (legacySurfaceScore) */
       surfaceScore: result.overallScore,
       grade: result.grade,
       brandServiceBinding: result.seoPlaybook.brandVisibility.bindingScore,

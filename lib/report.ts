@@ -1,6 +1,7 @@
 import { AXIS_META, type DiagnosisResult } from "./types";
 
 import { buildFaqJsonLd } from "./ai-strategy";
+import { buildV4Sections } from "./report-v4";
 import { formatLocalSeoMarkdown } from "./local-seo";
 
 function impactLabel(v: string): string {
@@ -24,6 +25,18 @@ export function buildMarkdownReport(
 
   lines.push(`# AI 온라인 마케팅 사전진단 보고서`);
   lines.push(``);
+  if (result.businessProfile && result.adaptiveScores) {
+    lines.push(buildV4Sections(result.businessProfile, result.adaptiveScores, result.consistencyWarnings || []));
+    lines.push(``);
+    lines.push(`---`);
+    lines.push(``);
+    lines.push(`# 상세 진단 (참고 — 기존 v3 채점)`);
+    lines.push(``);
+    if (result.adaptiveScores.provisional) {
+      lines.push(`> ⚠️ 아래 v3 단일 점수는 비즈니스 유형 확인 전 참고용입니다. v4 여정별 점수를 우선하세요.`);
+      lines.push(``);
+    }
+  }
   lines.push(`## 1. 진단 개요`);
   lines.push(``);
   lines.push(`| 항목 | 내용 |`);
@@ -33,7 +46,7 @@ export function buildMarkdownReport(
   lines.push(`| 진단 ID | \`${result.id}\` |`);
   lines.push(`| 생성 시각 | ${date} |`);
   lines.push(
-    `| AI 진단 점수 | **${result.overallScore} / 100** (등급 ${result.grade}) |`,
+    `| AI 진단 점수(v3 참고) | **${result.overallScore} / 100** (등급 ${result.grade})${result.adaptiveScores?.provisional ? " · 임시 — v4 분류 확인 후 확정" : ""} |`,
   );
   if (result.reliability) {
     const confidenceKo = result.reliability.confidence === "high" ? "높음" : result.reliability.confidence === "medium" ? "중간" : "낮음";
