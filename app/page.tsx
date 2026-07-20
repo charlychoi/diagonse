@@ -25,26 +25,6 @@ export default function Home() {
 
       <main className="home-main">
         <DiagnoseApp />
-
-        <footer className="home-footer">
-          <p>
-            서비스:{" "}
-            <a href="https://diagnose.charlychoi.chatgpt.site">
-              diagnose.charlychoi.chatgpt.site
-            </a>
-            {" · "}
-            사용자 설명서: <Link href="/manual">/manual</Link>
-            {" · "}
-            저장소:{" "}
-            <a
-              href="https://github.com/charlychoi/diagonse"
-              target="_blank"
-              rel="noreferrer"
-            >
-              github.com/charlychoi/diagonse
-            </a>
-          </p>
-        </footer>
       </main>
     </div>
   );
