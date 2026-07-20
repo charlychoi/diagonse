@@ -4,6 +4,7 @@ export const maxDuration = 60;
 
 import { resolveAiConfig, aiEnabled, callAi } from "../../../lib/ai-provider";
 import { isDeploymentExpired, expiryDateLabel, expiryMessage } from "../../../lib/deployment-expiry";
+import { getServiceNotice } from "../../../lib/service-notice";
 
 /**
  * GET /api/health          → 서비스 상태 + 현재 AI 프로바이더 라벨
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
       expiresAt: expiryDateLabel(),
       message: expired ? expiryMessage() : null,
     },
+    notice: getServiceNotice(),
   };
   const url = new URL(request.url);
   const aiParam = url.searchParams.get("ai");

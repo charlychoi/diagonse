@@ -227,6 +227,7 @@ export function DiagnoseApp() {
   const [docKind, setDocKind] = useState<DocKind>("full");
   const [docFormat, setDocFormat] = useState<DocFormat>("md");
   const [expiryInfo, setExpiryInfo] = useState<{ expired: boolean; message: string | null } | null>(null);
+  const [serviceNotice, setServiceNotice] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -234,12 +235,14 @@ export function DiagnoseApp() {
     };
   }, []);
 
-  // 체험 배포 만료 가드: 서버에 DEPLOY_EXPIRES_AT이 설정된 경우에만 동작(평소엔 영향 없음)
+  // 체험 배포 만료 가드(DEPLOY_EXPIRES_AT) + 서비스 공지 배너(SERVICE_NOTICE) — 둘 다
+  // 서버 환경변수가 설정된 경우에만 동작하고, 평소엔 화면에 아무 영향이 없다.
   useEffect(() => {
     fetch("/api/health")
       .then((r) => r.json())
-      .then((d: { expiry?: { expired?: boolean; message?: string | null } }) => {
+      .then((d: { expiry?: { expired?: boolean; message?: string | null }; notice?: string | null }) => {
         if (d?.expiry) setExpiryInfo({ expired: !!d.expiry.expired, message: d.expiry.message || null });
+        if (d?.notice) setServiceNotice(d.notice);
       })
       .catch(() => {});
   }, []);
@@ -406,6 +409,12 @@ export function DiagnoseApp() {
         AI가 홈페이지·검색·전환 신호를 종합 분석한 <strong>광고 전 사전진단</strong>입니다.
         개선 우선순위와 실행안을 제시하며, 실제 광고·매출 성과는 실행 후 데이터로 함께 검증합니다.
       </div>
+
+      {serviceNotice && (
+        <div className="alert alert-error" role="alert">
+          ⚠️ {serviceNotice}
+        </div>
+      )}
 
       {expiryInfo?.expired && (
         <div className="alert alert-error" role="alert">
