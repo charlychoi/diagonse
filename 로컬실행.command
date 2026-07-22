@@ -12,15 +12,47 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 echo "✅ Node.js $(node -v)"
 
-# 2) Grok CLI(OAuth) 확인 — whoami 등 인터랙티브로 빠질 수 있는 서브커맨드는 쓰지 않음
-if command -v grok >/dev/null 2>&1; then
-  echo "✅ Grok CLI 설치됨 (경로: $(command -v grok))"
-  echo "   로그인 여부는 실제 진단 시 자동 확인됩니다. 안 되어 있으면: grok login --oauth"
-else
-  echo "⚠️ Grok CLI 미설치 — AI 없이 규칙 기반으로 동작합니다."
-  echo "   설치: curl -fsSL https://x.ai/cli/install.sh | bash"
-  echo "   로그인: grok login --oauth  (브라우저에서 charlychoi2027@gmail.com 선택)"
+# 2) .env.local에서 로컬 OAuth 공급자 확인 — whoami 등 인터랙티브로 빠질 수 있는
+#    서브커맨드는 쓰지 않고, CLI 설치 여부만 표시한다. 실제 로그인 상태는
+#    진단 실행 시 서버가 자동 확인한다.
+AI_PROVIDER_LOCAL=""
+if [ -f .env.local ]; then
+  AI_PROVIDER_LOCAL=$(grep -E '^AI_PROVIDER=' .env.local | tail -1 | cut -d= -f2 | tr -d '[:space:]')
 fi
+
+check_grok() {
+  if command -v grok >/dev/null 2>&1; then
+    echo "✅ Grok CLI 설치됨 (경로: $(command -v grok))"
+    echo "   로그인 안 되어 있으면: grok login --oauth  (브라우저에서 charlychoi2027@gmail.com 선택)"
+  else
+    echo "⚠️ Grok CLI 미설치 — 설치: curl -fsSL https://x.ai/cli/install.sh | bash"
+  fi
+}
+check_codex() {
+  if command -v codex >/dev/null 2>&1; then
+    echo "✅ Codex CLI 설치됨 (경로: $(command -v codex))"
+    echo "   로그인 안 되어 있으면: codex login"
+  else
+    echo "⚠️ Codex CLI 미설치 — https://github.com/openai/codex 안내에 따라 설치 후 codex login"
+  fi
+}
+
+case "$AI_PROVIDER_LOCAL" in
+  grok)
+    echo "🔧 설정된 AI 공급자: Grok 4.5 OAuth"
+    check_grok
+    ;;
+  codex|chatgpt|gpt|openai)
+    echo "🔧 설정된 AI 공급자: Codex(ChatGPT) OAuth"
+    check_codex
+    ;;
+  *)
+    echo "ℹ️ .env.local에 AI_MODE=local-oauth가 설정되지 않았습니다 — 규칙 기반으로 동작합니다."
+    echo "   Grok 또는 Codex OAuth로 전환하려면 .env.local의 AI_MODE/AI_PROVIDER를 확인하세요."
+    check_grok
+    check_codex
+    ;;
+esac
 
 # 3) 의존성 설치(최초 1회)
 if [ ! -d node_modules ]; then
